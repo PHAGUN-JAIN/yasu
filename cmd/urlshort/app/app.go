@@ -25,7 +25,7 @@ func RunApplication() {
 	// 	log.Fatal(err)
 	// }
 
-	err := router.RunServer("8000")
+	err := router.RunYasuServer("8000")
 	if err != nil {
 		log.Fatal(err)
 	}

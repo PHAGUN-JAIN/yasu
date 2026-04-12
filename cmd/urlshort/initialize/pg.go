@@ -7,6 +7,10 @@ import (
 	_ "github.com/lib/pq" // Import PostgreSQL driver
 )
 
+func init() {
+	log.Println("Initializing PostgreSQL client...")
+}
+
 func GetPostgressClient() *sql.DB {
 
 	log.Println("Attempting to connect with: host=postgres user=postgres")

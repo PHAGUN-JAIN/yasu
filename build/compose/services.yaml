@@ -34,12 +34,12 @@ services:
   #   networks:
   #     - yasu-network
 
-  yasu:
-    extends:
-      file: ../images/build.yaml
-      service: yasu
-    networks:
-      - yasu-network
-    depends_on:
-      postgres:
-        condition: service_healthy
+  # yasu:
+  #   extends:
+  #     file: ../images/build.yaml
+  #     service: yasu
+  #   networks:
+  #     - yasu-network
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy

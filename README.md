@@ -87,10 +87,20 @@ The pattern underneath most DB switches is the same:
 
  
 
- # DEV
+# Local Dev Guide
 
- 0. `docker compose -f build/dev/services.yaml up -d`
 
- 1. `make build`
+ 1. build image
+ ```shell
+ make build
+ ```
 
- 2. `docker run -p 8000:8000 --name urlshort-container urlshort:latest`
+ 2. run service with dependencies
+  ```shell
+  make up
+  ```
+
+ 3. 
+ ```shell
+ curl 127.0.0.1:8000/api/v1/health -ki
+ ```

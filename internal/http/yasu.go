@@ -5,22 +5,18 @@ import (
 	"net/http"
 	"time"
 
+	handler "urlshort/internal/http/handler"
+
 	"github.com/gorilla/mux"
 )
 
-func RegisterHealthRoute(router *mux.Router) {
-	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
-	}).Methods("GET")
-}
-
-func RunServer(port string) error {
+func RunYasuServer(port string) error {
 
 	mainRouter := mux.NewRouter()
 	apiGroup := mainRouter.PathPrefix("/api/v1").Subrouter()
 
 	RegisterHealthRoute(apiGroup)
+	apiGroup.HandleFunc("/yasu", handler.YasuHandler)
 
 	srv := &http.Server{
 		Handler: mainRouter,
@@ -34,4 +30,11 @@ func RunServer(port string) error {
 	log.Fatal(srv.ListenAndServe())
 
 	return nil
+}
+
+func RegisterHealthRoute(router *mux.Router) {
+	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	}).Methods("GET")
 }
