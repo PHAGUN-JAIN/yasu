@@ -3,11 +3,13 @@ package initialize
 import (
 	"database/sql"
 	"log"
+	"time"
 
 	_ "github.com/lib/pq" // Import PostgreSQL driver
 )
 
 func init() {
+	// TODO: add tablest creation and migration logic here, or create a separate function for it and call it from app.go
 	log.Println("Initializing PostgreSQL client...")
 }
 
@@ -21,6 +23,10 @@ func GetPostgressClient() *sql.DB {
 		log.Fatal(err)
 	}
 	// defer db.Close()
+
+	db.SetMaxOpenConns(25)
+	db.SetMaxIdleConns(10)
+	db.SetConnMaxLifetime(time.Hour)
 
 	err = db.Ping()
 	if err != nil {

@@ -1,8 +1,12 @@
 package service
 
-import "net/http"
+import (
+	"database/sql"
+	"net/http"
+)
 
 type YasuService struct {
+	PgConn *sql.DB
 }
 
 func (s *YasuService) GetMessage() string {
@@ -22,6 +26,8 @@ func (s *YasuService) Shorten(r *http.Request) string {
 	// 3. Store the mapping of short ID to original URL in the database
 	// 4. publish an event to buffer for asynchronous processing (e.g., analytics, cache warming, etc.)
 	// 5. Return the shortened URL to the client
+	
+	s.PgConn.QueryRow("SELECT 1").Scan() // Example query 
 	return "Hello from YasuService! I am CreateYasu."
 }
 

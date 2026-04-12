@@ -1,18 +1,23 @@
 package http
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"time"
+	"urlshort/cmd/urlshort/initialize"
 	"urlshort/internal/http/handler"
 	"urlshort/internal/service"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
 
 func RunYasuServer(port string) error {
 
 	mainRouter := mux.NewRouter()
+	mainRouter.Use(RequestIDMiddleware)
+	mainRouter.Use(LoggingMiddleware)
 	apiGroup := mainRouter.PathPrefix("/api/v1").Subrouter()
 
 	RegisterHealthRoute(apiGroup)
@@ -34,7 +39,10 @@ func RunYasuServer(port string) error {
 
 func RegisterYasuRoutes(router *mux.Router) {
 	// Initialize the YasuHandler with the YasuService, postgress client , buffer client, and any other dependencies it may require
-	yasuHandler := &handler.YasuHandler{Service: &service.YasuService{}} // initialize the service
+	pgconn := initialize.GetPostgressClient()
+	yasuHandler := &handler.YasuHandler{Service: &service.YasuService{
+		PgConn: pgconn,
+	}}
 
 	router.HandleFunc("/yasu/{id}", yasuHandler.GetYasu).Methods("GET")
 	router.HandleFunc("/yasu/shorten", yasuHandler.CreateYasu).Methods("POST")
@@ -47,4 +55,41 @@ func RegisterHealthRoute(router *mux.Router) {
 		w.Write([]byte("OK"))
 	},
 	).Methods("GET")
+}
+
+func LoggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		start := time.Now()
+
+		reqID, _ := r.Context().Value("request_id").(string)
+
+		log.Printf("[%s] Started %s %s",
+			reqID, r.Method, r.URL.Path,
+		)
+
+		next.ServeHTTP(w, r)
+
+		log.Printf("[%s] Completed in %v",
+			reqID, time.Since(start),
+		)
+	})
+}
+
+func RequestIDMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+		requestID := r.Header.Get("X-Request-ID")
+
+		if requestID == "" {
+			requestID = uuid.NewString()
+		}
+
+		// attach to context
+		ctx := context.WithValue(r.Context(), "request_id", requestID)
+
+		w.Header().Set("X-Request-ID", requestID)
+
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
 }
