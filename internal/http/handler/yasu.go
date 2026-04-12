@@ -17,9 +17,13 @@ func (h *YasuHandler) GetYasu(w http.ResponseWriter, r *http.Request) {
 
 // CreateYasu creates a new shortened URL for a given original URL
 func (h *YasuHandler) CreateYasu(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Created Yasu"))
+	// validation, auth checks, etc. can be done here before calling the service layer
+	result := h.Service.Shorten(r)
+	w.Write([]byte(result))
 }
 
 func (h *YasuHandler) DeleteYasu(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Deleted Yasu"))
+	// validation, auth checks, etc. can be done here before calling the service layer
+	result := h.Service.DeleteYasu()
+	w.Write([]byte(result))
 }

@@ -33,6 +33,7 @@ func RunYasuServer(port string) error {
 }
 
 func RegisterYasuRoutes(router *mux.Router) {
+	// Initialize the YasuHandler with the YasuService, postgress client , buffer client, and any other dependencies it may require
 	yasuHandler := &handler.YasuHandler{Service: &service.YasuService{}} // initialize the service
 
 	router.HandleFunc("/yasu/{id}", yasuHandler.GetYasu).Methods("GET")
