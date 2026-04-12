@@ -1,4 +1,5 @@
-# urlshort — URL shortener with ClickHouse analytics
+# YASU - Yet Another Short URL
+urlshortner service — URL shortener with ClickHouse analytics
 
 ## Build order (suggested)
 
