@@ -22,7 +22,7 @@ jobs:
         go-version: '1.25'
 
     - name: Build
-      run: go build -ldflags="-s -w" -o urlshort ./cmd/urlshort/main.go
+      run: make build
 
     - name: Test
       run: go test -v ./...

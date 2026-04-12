@@ -1,14 +1,16 @@
 # Makefile for building the Docker image
 
 # Variables
+DOCKER_COMPOSE_BUILD_FILE=build/images/build.yaml
 DOCKER_COMPOSE_FILE=build/compose/services.yaml
-SERVICE_NAME=urlshort
-NETWORK_NAME=compose_urlshort-network
+
+SERVICE_NAME=yasu
+NETWORK_NAME=compose_yasu-network
 
 # Default target
 .PHONY: build
 build:
-	docker-compose -f $(DOCKER_COMPOSE_FILE) build $(SERVICE_NAME)
+	docker-compose -f $(DOCKER_COMPOSE_BUILD_FILE) build $(SERVICE_NAME)
 
 # Bring up all services
 .PHONY: up

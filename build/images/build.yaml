@@ -1,9 +1,9 @@
 services:
-  urlshort:
+  yasu:
     build:
       context: ../..
       dockerfile: build/images/Dockerfile
-    image: urlshort:latest
+    image: yasu:v1
     ports:
       - "8000:8000"
-    container_name: urlshort
+    container_name: yasu
