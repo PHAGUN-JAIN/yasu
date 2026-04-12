@@ -1,0 +1,17 @@
+version: '3.8'
+
+networks:
+  urlshort-network:
+    driver: bridge
+
+services:
+  urlshort:
+    build:
+      context: ../..
+      dockerfile: build/images/Dockerfile
+    image: urlshort:latest
+    ports:
+      - "8000:8000"
+    container_name: urlshort
+    networks:
+      - urlshort-network
