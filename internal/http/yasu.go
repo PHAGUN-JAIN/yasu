@@ -4,8 +4,8 @@ import (
 	"log"
 	"net/http"
 	"time"
-
-	handler "urlshort/internal/http/handler"
+	"urlshort/internal/http/handler"
+	"urlshort/internal/service"
 
 	"github.com/gorilla/mux"
 )
@@ -16,7 +16,7 @@ func RunYasuServer(port string) error {
 	apiGroup := mainRouter.PathPrefix("/api/v1").Subrouter()
 
 	RegisterHealthRoute(apiGroup)
-	apiGroup.HandleFunc("/yasu", handler.YasuHandler)
+	RegisterYasuRoutes(apiGroup)
 
 	srv := &http.Server{
 		Handler: mainRouter,
@@ -32,9 +32,18 @@ func RunYasuServer(port string) error {
 	return nil
 }
 
+func RegisterYasuRoutes(router *mux.Router) {
+	yasuHandler := &handler.YasuHandler{Service: &service.YasuService{}} // initialize the service
+
+	router.HandleFunc("/yasu/{id}", yasuHandler.GetYasu).Methods("GET")
+	router.HandleFunc("/yasu/shorten", yasuHandler.CreateYasu).Methods("POST")
+	router.HandleFunc("/yasu/{id}", yasuHandler.DeleteYasu).Methods("DELETE")
+}
+
 func RegisterHealthRoute(router *mux.Router) {
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("OK"))
-	}).Methods("GET")
+	},
+	).Methods("GET")
 }
