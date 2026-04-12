@@ -1,27 +1,22 @@
 # Makefile for building the Docker image
 
 # Variables
-DOCKER_COMPOSE_FILE=build/images/build.yaml
-DEV_COMPOSE_FILE=build/dev/services.yaml
+DOCKER_COMPOSE_FILE=build/compose/services.yaml
 SERVICE_NAME=urlshort
-NETWORK_NAME=urlshort-network
+NETWORK_NAME=compose_urlshort-network
 
 # Default target
 .PHONY: build
 build:
 	docker-compose -f $(DOCKER_COMPOSE_FILE) build $(SERVICE_NAME)
 
-# Bring up dev services
-.PHONY: up-dev
-up-dev:
-	docker-compose -f $(DEV_COMPOSE_FILE) up -d
+# Bring up all services
+.PHONY: up
+up:
+	docker-compose -f $(DOCKER_COMPOSE_FILE) up -d
 
-# Ensure the network exists
-.PHONY: create-network
-create-network:
-	docker network inspect $(NETWORK_NAME) >/dev/null 2>&1 || docker network create $(NETWORK_NAME)
-
-# Run the Docker container
-.PHONY: run
-run: up-dev build create-network
-	docker run -p 8000:8000 --name $(SERVICE_NAME)-container --network=$(NETWORK_NAME) $(SERVICE_NAME):latest
+# Clean up all containers and networks
+.PHONY: clean
+down:
+	docker-compose -f $(DOCKER_COMPOSE_FILE) down --volumes --remove-orphans
+	docker network rm $(NETWORK_NAME) || true
