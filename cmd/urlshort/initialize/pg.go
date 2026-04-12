@@ -2,16 +2,22 @@ package initialize
 
 import (
 	"database/sql"
+	"urlshort/migrations"
+
+	_ "github.com/lib/pq" // Import PostgreSQL driver
+
+	// ↑ blank import — just runs the package's init() to register the driver
+
+	"fmt"
 	"log"
 	"time"
 
-	_ "github.com/lib/pq" // Import PostgreSQL driver
+	"github.com/golang-migrate/migrate/v4"
+	"github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"github.com/golang-migrate/migrate/v4/source/iofs"
 )
-
-func init() {
-	// TODO: add tablest creation and migration logic here, or create a separate function for it and call it from app.go
-	log.Println("Initializing PostgreSQL client...")
-}
 
 func GetPostgressClient() *sql.DB {
 
@@ -22,7 +28,6 @@ func GetPostgressClient() *sql.DB {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// defer db.Close()
 
 	db.SetMaxOpenConns(25)
 	db.SetMaxIdleConns(10)
@@ -37,3 +42,46 @@ func GetPostgressClient() *sql.DB {
 }
 
 // handle migrations here as well, or create a separate function for it and call it from app.go
+
+func RunMigrations(db *sql.DB) error {
+	defer db.Close()
+
+	driver, err := postgres.WithInstance(db, &postgres.Config{})
+	if err != nil {
+		return err
+	}
+
+	entries, _ := migrations.Postgres.ReadDir("postgres")
+	for _, e := range entries {
+		log.Printf("found migration file: %s", e.Name())
+	}
+
+	src, err := iofs.New(migrations.Postgres, "postgres")
+	if err != nil {
+		return fmt.Errorf("migration source error: %w", err)
+	}
+
+	m, err := migrate.NewWithInstance("iofs", src, "postgres", driver)
+	if err != nil {
+		return err
+	}
+
+	m.Log = &MigrateLogger{}
+
+	err = m.Up()
+	if err != nil && err != migrate.ErrNoChange {
+		return err
+	}
+
+	return nil
+}
+
+type MigrateLogger struct{}
+
+func (l *MigrateLogger) Printf(format string, v ...interface{}) {
+	log.Printf("[migrate] "+format, v...)
+}
+
+func (l *MigrateLogger) Verbose() bool {
+	return true // set false to suppress debug-level logs
+}
