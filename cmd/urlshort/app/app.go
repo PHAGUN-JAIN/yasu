@@ -2,7 +2,7 @@ package app
 
 import (
 	"log"
-	"urlshort/cmd/urlshort/initialize"
+	// "urlshort/cmd/urlshort/initialize"
 	router "urlshort/internal/http"
 )
 
@@ -17,15 +17,15 @@ import (
 
 func RunApplication() {
 	log.Println("Starting URL Shortener Application...")
-	clients := initialize.GetClients()
+	// clients := initialize.GetClients()
 
 	//create the table if it doesn't exist
-	_, err := clients.PgClient.Exec("CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name TEXT, email TEXT)")
-	if err != nil {
-		log.Fatal(err)
-	}
+	// _, err := clients.PgClient.Exec("CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, name TEXT, email TEXT)")
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	err = router.RunServer("8000")
+	err := router.RunServer("8000")
 	if err != nil {
 		log.Fatal(err)
 	}
