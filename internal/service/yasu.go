@@ -1,12 +1,20 @@
 package service
 
 import (
+	"context"
 	"database/sql"
-	"net/http"
+	"time"
 )
 
 type YasuService struct {
 	PgConn *sql.DB
+}
+
+type ShortenRequest struct {
+	OriginalURL string
+	ExpiresAt   *time.Time // pointer so it's optional (nil = never expires)
+	IsCustom    bool
+	CustomCode  string // only used when IsCustom is true
 }
 
 func (s *YasuService) GetMessage() string {
@@ -19,16 +27,16 @@ func (s *YasuService) GetMessage() string {
 	return "Hello from YasuService! I am GetYasu."
 }
 
-func (s *YasuService) Shorten(r *http.Request) string {
+func (s *YasuService) Shorten(ctx context.Context, req ShortenRequest) (string, error) {
 	// TODO: Implement URL shortening logic here
 	// 1. Parse the original URL from the request body
 	// 2. Generate a unique short ID for the URL
 	// 3. Store the mapping of short ID to original URL in the database
 	// 4. publish an event to buffer for asynchronous processing (e.g., analytics, cache warming, etc.)
 	// 5. Return the shortened URL to the client
-	
-	s.PgConn.QueryRow("SELECT 1").Scan() // Example query 
-	return "Hello from YasuService! I am CreateYasu."
+
+	s.PgConn.QueryRow("SELECT 1").Scan() // Example query
+	return "Hello from YasuService! I am CreateYasu.", nil
 }
 
 func (s *YasuService) DeleteYasu() string {

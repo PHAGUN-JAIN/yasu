@@ -44,9 +44,9 @@ func RegisterYasuRoutes(router *mux.Router) {
 		PgConn: pgconn,
 	}}
 
-	router.HandleFunc("/yasu/{id}", yasuHandler.GetYasu).Methods("GET")
-	router.HandleFunc("/yasu/shorten", yasuHandler.CreateYasu).Methods("POST")
-	router.HandleFunc("/yasu/{id}", yasuHandler.DeleteYasu).Methods("DELETE")
+	router.HandleFunc("/{id}", yasuHandler.GetYasu).Methods("GET")
+	router.HandleFunc("/shorten", yasuHandler.CreateYasu).Methods("POST")
+	router.HandleFunc("/{id}", yasuHandler.DeleteYasu).Methods("DELETE")
 }
 
 func RegisterHealthRoute(router *mux.Router) {
