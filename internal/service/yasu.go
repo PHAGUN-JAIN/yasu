@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"database/sql"
+	"log"
 	"time"
 )
 
@@ -11,10 +12,9 @@ type YasuService struct {
 }
 
 type ShortenRequest struct {
-	OriginalURL string
-	ExpiresAt   *time.Time // pointer so it's optional (nil = never expires)
-	IsCustom    bool
-	CustomCode  string // only used when IsCustom is true
+	ExpiresAt  *time.Time `json:"expires_at,omitempty"`  // optional expiration time for the shortened URL
+	CustomCode string     `json:"custom_code,omitempty"` // only used when IsCustom is true
+	URL        string     `json:"url"`
 }
 
 func (s *YasuService) GetMessage() string {
@@ -35,7 +35,10 @@ func (s *YasuService) Shorten(ctx context.Context, req ShortenRequest) (string, 
 	// 4. publish an event to buffer for asynchronous processing (e.g., analytics, cache warming, etc.)
 	// 5. Return the shortened URL to the client
 
-	s.PgConn.QueryRow("SELECT 1").Scan() // Example query
+	log.Printf("Received request to shorten URL: %s, expires at: %v, custom code: %s", req.URL, req.ExpiresAt, req.CustomCode)
+	res := s.PgConn.QueryRow("SELECT 1").Scan("short_urls") // Example query
+	log.Println("Database query result:", res)              // Log the result of the query for debugging
+
 	return "Hello from YasuService! I am CreateYasu.", nil
 }
 

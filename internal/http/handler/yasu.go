@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"urlshort/internal/service"
+	"urlshort/internal/utils/serde"
 )
 
 type YasuHandler struct {
@@ -17,10 +18,21 @@ func (h *YasuHandler) GetYasu(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateYasu creates a new shortened URL for a given original URL
+//
+//	curl -X POST http://localhost:8000/api/v1/shorten \
+//	  -H "Content-Type: application/json" \
+//	  -d '{"url": "https://google.com"}' \
+//	  -v
 func (h *YasuHandler) CreateYasu(w http.ResponseWriter, r *http.Request) {
-	// validation, auth checks, etc. can be done here before calling the service layer
 	var req service.ShortenRequest
 	err := json.NewDecoder(r.Body).Decode(&req) // TODO: handle error and validate req
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	serializer := &serde.YasuSerializer{}
+	err = serializer.YasuDeserializer(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
