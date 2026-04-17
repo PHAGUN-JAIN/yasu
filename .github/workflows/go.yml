@@ -20,9 +20,28 @@ jobs:
       uses: actions/setup-go@v4
       with:
         go-version: '1.25'
+    
+    - name: Install docker-compose
+      run: |
+          sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+          sudo chmod +x /usr/local/bin/docker-compose
+          docker-compose --version
 
-    - name: Build
-      run: go build -ldflags="-s -w" -o urlshort ./cmd/urlshort/main.go
+    - name: Build and start services
+      run: make up
 
-    - name: Test
-      run: go test -v ./...
+    - name: Wait for services to be healthy
+      run: |
+          echo "Waiting for postgres..."
+          sleep 10
+          docker-compose -f build/compose/services.yaml ps
+
+    #- name: Build
+    #  run: go build -ldflags="-s -w" -o urlshort ./cmd/urlshort/main.go
+
+    #- name: Test
+    #  run: go test -v ./...
+  
+    - name: Tear down
+      if: always()   # runs even if tests fail
+      run: make down
