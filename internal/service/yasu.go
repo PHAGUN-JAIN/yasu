@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"errors"
 	"log"
 	"time"
 )
@@ -13,19 +14,42 @@ type YasuService struct {
 }
 
 type ShortenRequest struct {
-	ExpiresAt  time.Time `json:"expires_at"`  // optional expiration time for the shortened URL
+	ExpiresAt  time.Time `json:"expires_at"`            // optional expiration time for the shortened URL
 	CustomCode string    `json:"custom_code,omitempty"` // only used when IsCustom is true
 	URL        string    `json:"url"`
 }
 
-func (s *YasuService) Get() string {
+func (s *YasuService) Get(ctx context.Context, code string) (string, error) {
 	// TODO: Implement logic to retrieve the original URL based on the short ID
 	// 1. Extract the short ID from the request URL
 	// 2. Query the database to find the corresponding original URL
 	// 3. Handle cases where the short ID does not exist or has expired
 	// 4. publish an event to buffer for asynchronous processing (e.g., analytics, cache warming, etc.)
 	// 5. Return the original URL to the client
-	return "Hello from YasuService! I am GetYasu."
+
+	var originalURL string
+	var expiresAt time.Time
+
+	err := s.PgConn.QueryRow(
+		`SELECT original_url, expires_at 
+         FROM short_urls 
+         WHERE code = $1
+         AND (expires_at IS NULL OR expires_at > now())`,
+		code,
+	).Scan(&originalURL, &expiresAt)
+
+	// if err == pgx.ErrNoRows {
+	//     return "", ErrNotFound  // define a sentinel error
+	// }
+	if err != nil {
+		log.Printf("Error querying database for code %s: %v", code, err)
+		if errors.Is(err, sql.ErrNoRows) {
+			return "", ErrNotFound
+		}
+		return "", errors.New("error querying database for original URL") // wrap the error with additional context
+	}
+
+	return originalURL, nil
 }
 
 func (s *YasuService) Shorten(ctx context.Context, req ShortenRequest) (string, error) {
@@ -42,11 +66,13 @@ func (s *YasuService) Shorten(ctx context.Context, req ShortenRequest) (string, 
 		return "", err
 	}
 
+	req.ExpiresAt = time.Now().UTC().Add(7 * 24 * time.Hour)
+
 	_, err = s.PgConn.Exec(
 		`INSERT INTO short_urls (code, original_url, expires_at)
          VALUES ($1, $2, $3)
          ON CONFLICT (code) DO NOTHING`,
-		 code, req.URL, req.ExpiresAt,
+		code, req.URL, req.ExpiresAt,
 	)
 	if err != nil {
 		log.Printf("Error inserting into database: %v", err)

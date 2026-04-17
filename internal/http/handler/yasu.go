@@ -2,9 +2,13 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
+	"log"
 	"net/http"
 	"urlshort/internal/service"
 	"urlshort/internal/utils/serde"
+
+	"github.com/gorilla/mux"
 )
 
 type YasuHandler struct {
@@ -13,8 +17,30 @@ type YasuHandler struct {
 
 // Get returns the shortened URL for a given original URL
 func (h *YasuHandler) Get(w http.ResponseWriter, r *http.Request) {
-	msg := h.Service.Get()
-	w.Write([]byte(msg))
+
+	serializer := &serde.YasuSerializer{}
+	err := serializer.ResolveDeserializer()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+
+	vars := mux.Vars(r)
+	code := vars["code"]
+	log.Printf("extracted code: '%s'", code)
+
+	originalURL, err := h.Service.Get(r.Context(), code)
+	if errors.Is(err, service.ErrNotFound) {
+		http.Error(w, "URL not found or expired", http.StatusNotFound)
+		return
+	}
+	if err != nil {
+		log.Printf("Error retrieving original URL for code %s: %v", code, err)
+		http.Error(w, "something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	// 302 — not 301, see design decisions in README
+	http.Redirect(w, r, originalURL, http.StatusFound)
 }
 
 // Create creates a new shortened URL for a given original URL
@@ -32,7 +58,7 @@ func (h *YasuHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	serializer := &serde.YasuSerializer{}
-	err = serializer.YasuDeserializer(req)
+	err = serializer.ShortenDeserializer(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
