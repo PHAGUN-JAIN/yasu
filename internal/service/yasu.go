@@ -33,20 +33,19 @@ func (s *YasuService) Get(ctx context.Context, code string) (string, error) {
 	err := s.PgConn.QueryRow(
 		`SELECT original_url, expires_at 
          FROM short_urls 
-         WHERE code = $1
-         AND (expires_at IS NULL OR expires_at > now())`,
+         WHERE code = $1`,
 		code,
 	).Scan(&originalURL, &expiresAt)
-
-	// if err == pgx.ErrNoRows {
-	//     return "", ErrNotFound  // define a sentinel error
-	// }
 	if err != nil {
 		log.Printf("Error querying database for code %s: %v", code, err)
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", ErrNotFound
 		}
-		return "", errors.New("error querying database for original URL") // wrap the error with additional context
+		return "", ErrInternal // wrap the error with additional context
+	}
+
+	if expiresAt.Before(time.Now().UTC()) {
+		return "", ErrExpired
 	}
 
 	return originalURL, nil

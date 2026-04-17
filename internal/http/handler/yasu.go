@@ -17,6 +17,12 @@ type YasuHandler struct {
 
 // Get returns the shortened URL for a given original URL
 func (h *YasuHandler) Get(w http.ResponseWriter, r *http.Request) {
+	//  1. extract code from URL
+	//  2. check Redis cache first
+	//  3. if cache miss → query Postgres
+	//  4. if not found → 404
+	//  5. if found but expired → 410 Gone
+	//  6. redirect 302 to original URL 
 
 	serializer := &serde.YasuSerializer{}
 	err := serializer.ResolveDeserializer()
@@ -33,8 +39,11 @@ func (h *YasuHandler) Get(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "URL not found or expired", http.StatusNotFound)
 		return
 	}
+	if errors.Is(err, service.ErrExpired) {
+		http.Error(w, "URL has expired", http.StatusGone)
+		return
+	}
 	if err != nil {
-		log.Printf("Error retrieving original URL for code %s: %v", code, err)
 		http.Error(w, "something went wrong", http.StatusInternalServerError)
 		return
 	}
