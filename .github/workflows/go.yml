@@ -23,25 +23,54 @@ jobs:
     
     - name: Install docker-compose
       run: |
-          sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-          sudo chmod +x /usr/local/bin/docker-compose
-          docker-compose --version
+        sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+        sudo chmod +x /usr/local/bin/docker-compose
+        docker-compose --version
 
     - name: Build and start services
       run: make up
 
     - name: Wait for services to be healthy
       run: |
-          echo "Waiting for postgres..."
-          sleep 10
-          docker-compose -f build/compose/services.yaml ps
+        echo "Waiting for postgres..."
+        sleep 10
+        docker-compose -f build/compose/services.yaml ps
 
     #- name: Build
     #  run: go build -ldflags="-s -w" -o urlshort ./cmd/urlshort/main.go
 
     #- name: Test
     #  run: go test -v ./...
-  
+
+    - name: Log in to GitHub Container Registry
+      # only publish on push to main, not on pull requests
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}   # ← built-in, no setup needed
+
+    - name: Extract image metadata
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=sha,prefix=sha-          # e.g. sha-abc1234
+          type=raw,value=latest         # always tag latest on main
+      
+    - name: Build and push image
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        file: build/images/build.yaml   # ← your Dockerfile path
+
     - name: Tear down
       if: always()   # runs even if tests fail
       run: make down
