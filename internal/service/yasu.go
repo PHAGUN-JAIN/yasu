@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
 	"database/sql"
 	"log"
 	"time"
@@ -12,12 +13,12 @@ type YasuService struct {
 }
 
 type ShortenRequest struct {
-	ExpiresAt  *time.Time `json:"expires_at,omitempty"`  // optional expiration time for the shortened URL
-	CustomCode string     `json:"custom_code,omitempty"` // only used when IsCustom is true
-	URL        string     `json:"url"`
+	ExpiresAt  time.Time `json:"expires_at"`  // optional expiration time for the shortened URL
+	CustomCode string    `json:"custom_code,omitempty"` // only used when IsCustom is true
+	URL        string    `json:"url"`
 }
 
-func (s *YasuService) GetMessage() string {
+func (s *YasuService) Get() string {
 	// TODO: Implement logic to retrieve the original URL based on the short ID
 	// 1. Extract the short ID from the request URL
 	// 2. Query the database to find the corresponding original URL
@@ -29,20 +30,33 @@ func (s *YasuService) GetMessage() string {
 
 func (s *YasuService) Shorten(ctx context.Context, req ShortenRequest) (string, error) {
 	// TODO: Implement URL shortening logic here
-	// 1. Parse the original URL from the request body
-	// 2. Generate a unique short ID for the URL
-	// 3. Store the mapping of short ID to original URL in the database
-	// 4. publish an event to buffer for asynchronous processing (e.g., analytics, cache warming, etc.)
-	// 5. Return the shortened URL to the client
+	// 1. Generate a unique short ID for the URL
+	// 2. Store the mapping of short ID to original URL in the database
+	// 3. publish an event to buffer for asynchronous processing (e.g., analytics, cache warming, etc.)
+	// 4. Return the shortened URL to the client
 
 	log.Printf("Received request to shorten URL: %s, expires at: %v, custom code: %s", req.URL, req.ExpiresAt, req.CustomCode)
-	res := s.PgConn.QueryRow("SELECT 1").Scan("short_urls") // Example query
-	log.Println("Database query result:", res)              // Log the result of the query for debugging
 
-	return "Hello from YasuService! I am CreateYasu.", nil
+	code, err := generateCode()
+	if err != nil {
+		return "", err
+	}
+
+	_, err = s.PgConn.Exec(
+		`INSERT INTO short_urls (code, original_url, expires_at)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (code) DO NOTHING`,
+		 code, req.URL, req.ExpiresAt,
+	)
+	if err != nil {
+		log.Printf("Error inserting into database: %v", err)
+		return "", err
+	}
+
+	return code, nil
 }
 
-func (s *YasuService) DeleteYasu() string {
+func (s *YasuService) Delete() string {
 	// TODO: Implement logic to delete a shortened URL based on the short ID
 	// 1. Extract the short ID from the request URL
 	// 2. Delete the corresponding entry from the database
@@ -50,4 +64,22 @@ func (s *YasuService) DeleteYasu() string {
 	// 4. Optionally, publish an event to buffer for asynchronous processing (e.g., analytics, cache warming, etc.)
 	// 5. Return a success message to the client
 	return "Hello from YasuService					! I am DeleteYasu."
+}
+
+const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+func generateCode() (string, error) {
+	bytes := make([]byte, 7)
+
+	_, err := rand.Read(bytes) // Fill with cryptographically random bytes from the OS (crypto/rand not math/rand). Each byte is a random number 0-255.
+	if err != nil {
+		log.Printf("Error generating random bytes: %v", err)
+		return "", err
+	}
+
+	for i, b := range bytes {
+		bytes[i] = alphabet[b%byte(len(alphabet))]
+	}
+
+	return string(bytes), nil
 }
