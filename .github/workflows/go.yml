@@ -27,14 +27,14 @@ jobs:
         sudo chmod +x /usr/local/bin/docker-compose
         docker-compose --version
 
-    - name: Build and start services
-      run: make up
+    # - name: Build and start services
+    #   run: make up
 
-    - name: Wait for services to be healthy
-      run: |
-        echo "Waiting for postgres..."
-        sleep 10
-        docker-compose -f build/compose/services.yaml ps
+    # - name: Wait for services to be healthy
+    #   run: |
+    #     echo "Waiting for postgres..."
+    #     sleep 10
+    #     docker-compose -f build/compose/services.yaml ps
 
     #- name: Build
     #  run: go build -ldflags="-s -w" -o urlshort ./cmd/urlshort/main.go
@@ -47,7 +47,7 @@ jobs:
       if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: docker/login-action@v3
       with:
-        registry: ${{ env.REGISTRY }}
+        registry: ghcr.io  
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}   # ← built-in, no setup needed
 
@@ -56,7 +56,7 @@ jobs:
       id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        images: ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
         tags: |
           type=sha,prefix=sha-          # e.g. sha-abc1234
           type=raw,value=latest         # always tag latest on main
@@ -69,7 +69,7 @@ jobs:
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        file: build/images/build.yaml   # ← your Dockerfile path
+        file: build/images/Dockerfile
 
     - name: Tear down
       if: always()   # runs even if tests fail
