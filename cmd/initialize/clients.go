@@ -1,6 +1,10 @@
 package initialize
 
-import "database/sql"
+import (
+	"database/sql"
+
+	"github.com/redis/go-redis/v9"
+)
 
 // postgress
 // clickhouse
@@ -8,10 +12,12 @@ import "database/sql"
 
 type Clients struct {
 	PgClient *sql.DB
+	Cache    *redis.Client
 }
 
 func GetClients() *Clients {
 	return &Clients{
 		PgClient: GetPostgressClient(),
+		Cache:    GetRedisClient(),
 	}
 }

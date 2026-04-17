@@ -2,7 +2,7 @@ package app
 
 import (
 	"log"
-	"urlshort/cmd/urlshort/initialize"
+	"urlshort/cmd/initialize"
 	router "urlshort/internal/http"
 )
 
@@ -16,7 +16,6 @@ import (
 // 7. Start HTTP server (router/router.go) ✅
 
 func RunApplication() {
-
 	log.Println("Running database migrations...")
 	clients := initialize.GetClients()
 	err := initialize.RunMigrations(clients.PgClient)
@@ -25,11 +24,8 @@ func RunApplication() {
 	}
 
 	log.Println("Starting URL Shortener Application...")
-
 	err = router.RunYasuServer("8000")
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	// TODO: Implement MCP server
 }

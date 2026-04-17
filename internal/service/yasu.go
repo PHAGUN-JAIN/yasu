@@ -7,10 +7,13 @@ import (
 	"errors"
 	"log"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 type YasuService struct {
 	PgConn *sql.DB
+	Cache  *redis.Client
 }
 
 type ShortenRequest struct {
@@ -21,9 +24,9 @@ type ShortenRequest struct {
 
 func (s *YasuService) Get(ctx context.Context, code string) (string, error) {
 	// TODO: Implement logic to retrieve the original URL based on the short ID
-	// 1. Extract the short ID from the request URL
-	// 2. Query the database to find the corresponding original URL
-	// 3. Handle cases where the short ID does not exist or has expired
+	// 1. Extract the short ID from the request URL ✅
+	// 2. Query the database to find the corresponding original URL ✅
+	// 3. Handle cases where the short ID does not exist or has expired ✅
 	// 4. publish an event to buffer for asynchronous processing (e.g., analytics, cache warming, etc.)
 	// 5. Return the original URL to the client
 
@@ -53,10 +56,10 @@ func (s *YasuService) Get(ctx context.Context, code string) (string, error) {
 
 func (s *YasuService) Shorten(ctx context.Context, req ShortenRequest) (string, error) {
 	// TODO: Implement URL shortening logic here
-	// 1. Generate a unique short ID for the URL
-	// 2. Store the mapping of short ID to original URL in the database
+	// 1. Generate a unique short ID for the URL ✅
+	// 2. Store the mapping of short ID to original URL in the database ✅
 	// 3. publish an event to buffer for asynchronous processing (e.g., analytics, cache warming, etc.)
-	// 4. Return the shortened URL to the client
+	// 4. Return the shortened URL to the client ✅
 
 	log.Printf("Received request to shorten URL: %s, expires at: %v, custom code: %s", req.URL, req.ExpiresAt, req.CustomCode)
 
@@ -67,6 +70,7 @@ func (s *YasuService) Shorten(ctx context.Context, req ShortenRequest) (string, 
 
 	req.ExpiresAt = time.Now().UTC().Add(7 * 24 * time.Hour)
 
+	// TODO: move this to store layer
 	_, err = s.PgConn.Exec(
 		`INSERT INTO short_urls (code, original_url, expires_at)
          VALUES ($1, $2, $3)
@@ -88,7 +92,7 @@ func (s *YasuService) Delete() string {
 	// 3. Handle cases where the short ID does not exist
 	// 4. Optionally, publish an event to buffer for asynchronous processing (e.g., analytics, cache warming, etc.)
 	// 5. Return a success message to the client
-	return "Hello from YasuService					! I am DeleteYasu."
+	return "Hello from YasuService! I am DeleteYasu."
 }
 
 const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"

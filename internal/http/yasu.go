@@ -5,13 +5,18 @@ import (
 	"log"
 	"net/http"
 	"time"
-	"urlshort/cmd/urlshort/initialize"
+	"urlshort/cmd/initialize"
 	"urlshort/internal/http/handler"
 	"urlshort/internal/service"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 )
+
+func RunYasuMcpServer(port string) error {
+	// TODO: Implement MCP server logic here
+	return nil
+}
 
 func RunYasuServer(port string) error {
 
@@ -39,9 +44,10 @@ func RunYasuServer(port string) error {
 
 func RegisterYasuRoutes(router *mux.Router) {
 	// Initialize the YasuHandler with the YasuService, postgress client , buffer client, and any other dependencies it may require
-	pgconn := initialize.GetPostgressClient()
+	clients := initialize.GetClients()
 	yasuHandler := &handler.YasuHandler{Service: &service.YasuService{
-		PgConn: pgconn,
+		PgConn: clients.PgClient,
+		Cache:  clients.Cache,
 	}}
 
 	router.HandleFunc("/{code}", yasuHandler.Get).Methods("GET")

@@ -17,12 +17,12 @@ type YasuHandler struct {
 
 // Get returns the shortened URL for a given original URL
 func (h *YasuHandler) Get(w http.ResponseWriter, r *http.Request) {
-	//  1. extract code from URL
+	//  1. extract code from URL ✅
 	//  2. check Redis cache first
 	//  3. if cache miss → query Postgres
-	//  4. if not found → 404
-	//  5. if found but expired → 410 Gone
-	//  6. redirect 302 to original URL 
+	//  4. if not found → 404    ✅
+	//  5. if found but expired → 410 Gone ✅
+	//  6. redirect 302 to original URL ✅
 
 	serializer := &serde.YasuSerializer{}
 	err := serializer.ResolveDeserializer()
@@ -36,15 +36,15 @@ func (h *YasuHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	originalURL, err := h.Service.Get(r.Context(), code)
 	if errors.Is(err, service.ErrNotFound) {
-		http.Error(w, "URL not found or expired", http.StatusNotFound)
+		http.Error(w, service.ErrNotFound.Error(), http.StatusNotFound)
 		return
 	}
 	if errors.Is(err, service.ErrExpired) {
-		http.Error(w, "URL has expired", http.StatusGone)
+		http.Error(w, service.ErrExpired.Error(), http.StatusGone)
 		return
 	}
 	if err != nil {
-		http.Error(w, "something went wrong", http.StatusInternalServerError)
+		http.Error(w, service.ErrInternal.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -75,7 +75,7 @@ func (h *YasuHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	code, err := h.Service.Shorten(r.Context(), req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, service.ErrInternal.Error(), http.StatusInternalServerError)
 		return
 	}
 
