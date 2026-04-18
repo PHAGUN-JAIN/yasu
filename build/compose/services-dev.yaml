@@ -12,3 +12,18 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    ports:
+      - "9000:9000"   # native protocol (use this in Go)
+      - "8123:8123"   # HTTP interface (useful for debugging in browser)
+    environment:
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=default
+      - CLICKHOUSE_DB=yasu_analytics
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
