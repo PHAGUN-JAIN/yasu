@@ -30,10 +30,18 @@ func (s *YasuService) Get(ctx context.Context, code string) (string, error) {
 	// 4. publish an event to buffer for asynchronous processing (e.g., analytics, cache warming, etc.)
 	// 5. Return the original URL to the client
 
+	cached, err := s.Cache.Get(ctx, "url:"+code).Result()
+	if err == nil {
+		return cached, nil
+	}
+	if err != redis.Nil {
+		log.Printf("Redis GET error: %v", err)
+	}
+
 	var originalURL string
 	var expiresAt time.Time
 
-	err := s.PgConn.QueryRow(
+	err = s.PgConn.QueryRow(
 		`SELECT original_url, expires_at 
          FROM short_urls 
          WHERE code = $1`,
@@ -51,6 +59,12 @@ func (s *YasuService) Get(ctx context.Context, code string) (string, error) {
 		return "", ErrExpired
 	}
 
+	if ttl := time.Until(expiresAt); ttl > 0 {
+		if err := s.Cache.Set(ctx, "url:"+code, originalURL, ttl).Err(); err != nil {
+			log.Printf("Redis SET error: %v", err)
+		}
+	}
+
 	return originalURL, nil
 }
 
@@ -61,23 +75,46 @@ func (s *YasuService) Shorten(ctx context.Context, req ShortenRequest) (string, 
 	// 3. publish an event to buffer for asynchronous processing (e.g., analytics, cache warming, etc.)
 	// 4. Return the shortened URL to the client ✅
 
-	code, err := generateCode()
-	if err != nil {
-		return "", err
-	}
-
 	req.ExpiresAt = time.Now().UTC().Add(7 * 24 * time.Hour)
 
-	// TODO: move this to store layer
-	_, err = s.PgConn.Exec(
-		`INSERT INTO short_urls (code, original_url, expires_at)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (code) DO NOTHING`,
-		code, req.URL, req.ExpiresAt,
-	)
-	if err != nil {
-		log.Printf("Error inserting into database: %v", err)
-		return "", err
+	var code string
+	var err error
+	//Generate + retry (handle collision)
+	for i := 0; i < 3; i++ {
+		code, err = generateCode()
+		if err != nil {
+			log.Printf("Code generation error: %v", err)
+			return "", ErrInternal
+		}
+
+		// TODO: move this to store layer
+		res, err := s.PgConn.Exec(
+			`INSERT INTO short_urls (code, original_url, expires_at)
+			 VALUES ($1, $2, $3)
+			 ON CONFLICT (code) DO NOTHING`,
+			code, req.URL, req.ExpiresAt,
+		)
+		if err != nil {
+			log.Printf("DB insert error: %v", err)
+			return "", ErrInternal
+		}
+
+		rows, _ := res.RowsAffected()
+		if rows > 0 {
+			break // success
+		}
+
+		code = "" // retry
+	}
+
+	if code == "" {
+		return "", ErrInternal
+	}
+
+	if ttl := time.Until(req.ExpiresAt); ttl > 0 {
+		if err := s.Cache.Set(ctx, "url:"+code, req.URL, ttl).Err(); err != nil {
+			log.Printf("Redis SET error: %v", err)
+		}
 	}
 
 
