@@ -1,9 +1,9 @@
 CREATE TABLE IF NOT EXISTS click_events (
     id          BIGSERIAL PRIMARY KEY,
     code        VARCHAR(12) NOT NULL,
-    country     VARCHAR(2),
-    device      VARCHAR(50),
-    referer     TEXT,
+    country     VARCHAR(2) DEFAULT 'XX',
+    device      VARCHAR(50) DEFAULT 'unknown',
+    referer     TEXT DEFAULT 'unknown',
     clicked_at  TIMESTAMPTZ DEFAULT now(),
     processed   BOOLEAN DEFAULT FALSE
 );

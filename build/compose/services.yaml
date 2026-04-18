@@ -24,6 +24,11 @@ services:
     ports:
       - "9000:9000"   # native protocol (use this in Go)
       - "8123:8123"   # HTTP interface (useful for debugging in browser)
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     environment:
       - CLICKHOUSE_USER=default
       - CLICKHOUSE_PASSWORD=default
@@ -54,11 +59,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-  yasu_mcp:
-    extends:
-      file: ../images/build.yaml
-      service: yasu_mcp
-    depends_on:
-      - yasu
-    networks:
-      - yasu-network
+        
+  # yasu_mcp:
+  #   extends:
+  #     file: ../images/build.yaml
+  #     service: yasu_mcp
+  #   depends_on:
+  #     - yasu
+  #   networks:
+  #     - yasu-network

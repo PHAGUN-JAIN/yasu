@@ -17,8 +17,12 @@ import (
 
 func RunApplication() {
 	log.Println("Running database migrations...")
-	clients := initialize.GetClients()
-	err := initialize.RunMigrations(clients.PgClient)
+	err := initialize.RunPostgresMigrations()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = initialize.RunClickHouseMigrations()
 	if err != nil {
 		log.Fatal(err)
 	}

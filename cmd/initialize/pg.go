@@ -10,6 +10,7 @@ import (
 	// ↑ blank import — just runs the package's init() to register the driver
 	"log"
 	"time"
+
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -47,7 +48,8 @@ func GetPostgressClient() *sql.DB {
 
 // handle migrations here as well, or create a separate function for it and call it from app.go
 
-func RunMigrations(db *sql.DB) error {
+func RunPostgresMigrations() error {
+	db := GetPostgressClient()
 	defer db.Close()
 
 	driver, err := postgres.WithInstance(db, &postgres.Config{})

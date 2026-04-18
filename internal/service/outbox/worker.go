@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"log"
 	"time"
-	"urlshort/internal/store"
 )
 
 // ClickEvent represents a single redirect event
@@ -19,21 +18,18 @@ type ClickEvent struct {
 
 // Worker drains the channel into Postgres, then Postgres into ClickHouse
 type Worker struct {
-	eventChan chan ClickEvent
-	pg        *sql.DB
-	ch        *store.CHStore
-
+	eventChan  chan ClickEvent
+	pg         *sql.DB
 	batchSize  int           // flush when channel hits this size
 	flushEvery time.Duration // flush on this interval even if not full
 }
 
-func NewWorker(pg *sql.DB, ch *store.CHStore) *Worker {
+func NewWorker(pg *sql.DB) *Worker {
 	return &Worker{
-		eventChan:  make(chan ClickEvent, 10000), // buffered — redirects never block
+		eventChan:  make(chan ClickEvent, 1000), // buffered — redirects never block
 		pg:         pg,
-		ch:         ch,
 		batchSize:  1000,
-		flushEvery: 2 * time.Second,
+		flushEvery: 5 * time.Second,
 	}
 }
 
@@ -51,6 +47,7 @@ func (w *Worker) Enqueue(e ClickEvent) {
 
 // Start runs the drain loop — call this in main.go as a goroutine
 func (w *Worker) Start(ctx context.Context) {
+	log.Printf("Outbox Worker started with batch size %d and flush interval %s", w.batchSize, w.flushEvery)
 	ticker := time.NewTicker(w.flushEvery)
 	defer ticker.Stop()
 
@@ -84,12 +81,43 @@ func (w *Worker) Start(ctx context.Context) {
 
 // flush writes batch to Postgres outbox
 func (w *Worker) flush(ctx context.Context, batch []ClickEvent) {
+	log.Printf("flushing %d events to Postgres outbox", len(batch))
 	if len(batch) == 0 {
 		return
 	}
 
-	// TODO: batch insert into click_events Postgres table
-	// hint: use pgx CopyFrom for fastest bulk insert into Postgres
-	// pgx CopyFrom is faster than a multi-row INSERT for large batches
-	log.Printf("flushing %d events to Postgres outbox", len(batch))
+	if err := bulkInsert(w.pg, batch); err != nil {
+		log.Printf("ERROR: failed to flush %d events to Postgres: %v", len(batch), err)
+		return
+	}
+	log.Printf("flushed %d events to Postgres", len(batch))
+}
+
+func bulkInsert(db *sql.DB, click_events []ClickEvent) error {
+	// 1. Start a transaction
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+	// Ensure rollback if any step fails
+	defer tx.Rollback()
+
+	// 2. Prepare the statement once
+	// PostgreSQL uses $1, $2, $3 placeholders, not ?
+	stmt, err := tx.Prepare("INSERT INTO click_events(code, referer, clicked_at) VALUES($1, $2, $3)")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	// 3. Execute for each record
+	for _, u := range click_events {
+		log.Printf("Inserting click event: code=%s, referer=%s, clicked_at=%s", u.Code, u.Referer, u.ClickedAt)
+		if _, err := stmt.Exec(u.Code, u.Referer, u.ClickedAt); err != nil {
+			return err
+		}
+	}
+
+	// 4. Commit all changes at once
+	return tx.Commit()
 }
