@@ -41,7 +41,7 @@ func (s *YasuService) Get(ctx context.Context, code string) (string, error) {
 	var originalURL string
 	var expiresAt time.Time
 
-	err := s.PgConn.QueryRow(
+	err = s.PgConn.QueryRow(
 		`SELECT original_url, expires_at 
          FROM short_urls 
          WHERE code = $1`,
@@ -74,8 +74,6 @@ func (s *YasuService) Shorten(ctx context.Context, req ShortenRequest) (string, 
 	// 2. Store the mapping of short ID to original URL in the database ✅
 	// 3. publish an event to buffer for asynchronous processing (e.g., analytics, cache warming, etc.)
 	// 4. Return the shortened URL to the client ✅
-
-	log.Printf("Received request to shorten URL: %s, expires at: %v, custom code: %s", req.URL, req.ExpiresAt, req.CustomCode)
 
 	code, err := generateCode()
 	if err != nil {
@@ -121,6 +119,15 @@ func (s *YasuService) Shorten(ctx context.Context, req ShortenRequest) (string, 
 			log.Printf("Redis SET error: %v", err)
 		}
 	}
+
+
+	// enqueue analytics event — non-blocking, never slows down redirect
+    // s.Worker.Enqueue(outbox.ClickEvent{
+    //     Code:      code,
+    //     Referer:   r.Header.Get("Referer"),   // pass from handler
+    //     ClickedAt: time.Now().UTC(),
+    //     // Country + Device added in Phase 4 (GeoIP)
+    // })
 
 	return code, nil
 }

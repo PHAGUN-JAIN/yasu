@@ -7,7 +7,7 @@ import (
 	"time"
 	"urlshort/cmd/initialize"
 	"urlshort/internal/http/handler"
-	"urlshort/internal/service"
+	urlshortsvc "urlshort/internal/service/urlshort"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
@@ -28,6 +28,13 @@ func RunYasuServer(port string) error {
 	RegisterHealthRoute(apiGroup)
 	RegisterYasuRoutes(apiGroup)
 
+	// worker  := outbox.NewWorker(pgConn, chStore)
+	// drainer := outbox.NewDrainer(pgConn, chStore)
+
+	// // start both as goroutines
+	// go worker.Start(ctx)
+	// go drainer.Start(ctx)
+
 	srv := &http.Server{
 		Handler: mainRouter,
 		Addr:    ":" + port,
@@ -45,7 +52,7 @@ func RunYasuServer(port string) error {
 func RegisterYasuRoutes(router *mux.Router) {
 	// Initialize the YasuHandler with the YasuService, postgress client , buffer client, and any other dependencies it may require
 	clients := initialize.GetClients()
-	yasuHandler := &handler.YasuHandler{Service: &service.YasuService{
+	yasuHandler := &handler.YasuHandler{Service: &urlshortsvc.YasuService{
 		PgConn: clients.PgClient,
 		Cache:  clients.Cache,
 	}}

@@ -2,7 +2,9 @@
 FROM golang:1.25 AS builder
 
 # Update to the latest version of the base image
-RUN apt-get update && apt-get upgrade -y
+# RUN apt-get update && apt-get upgrade -y
+
+
 
 # Set the working directory inside the container
 WORKDIR /app
