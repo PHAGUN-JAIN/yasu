@@ -14,7 +14,7 @@ import (
 type Clients struct {
 	PgClient *sql.DB
 	Cache    *redis.Client
-	ChClient *driver.Conn
+	ChClient driver.Conn
 }
 
 func GetClients() *Clients {

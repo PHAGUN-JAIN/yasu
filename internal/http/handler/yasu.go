@@ -34,7 +34,7 @@ func (h *YasuHandler) Get(w http.ResponseWriter, r *http.Request) {
 	code := vars["code"]
 	log.Printf("extracted code: '%s'", code)
 
-	originalURL, err := h.Service.Get(r.Context(), code)
+	originalURL, err := h.Service.Get(r.Context(), code, r.Header)
 	if errors.Is(err, urlshortsvc.ErrNotFound) {
 		http.Error(w, urlshortsvc.ErrNotFound.Error(), http.StatusNotFound)
 		return
@@ -47,9 +47,6 @@ func (h *YasuHandler) Get(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, urlshortsvc.ErrInternal.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	// todo: send event for analytics
-	// channel p publish
 
 	// 302 — not 301, see design decisions in README
 	http.Redirect(w, r, originalURL, http.StatusFound)

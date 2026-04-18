@@ -6,7 +6,9 @@ import (
 	"database/sql"
 	"errors"
 	"log"
+	"net/http"
 	"time"
+	"urlshort/internal/service/outbox"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -14,6 +16,7 @@ import (
 type YasuService struct {
 	PgConn *sql.DB
 	Cache  *redis.Client
+	Worker *outbox.Worker // for enqueuing events to buffer
 }
 
 type ShortenRequest struct {
@@ -22,7 +25,7 @@ type ShortenRequest struct {
 	URL        string    `json:"url"`
 }
 
-func (s *YasuService) Get(ctx context.Context, code string) (string, error) {
+func (s *YasuService) Get(ctx context.Context, code string, header http.Header) (string, error) {
 	// TODO: Implement logic to retrieve the original URL based on the short ID
 	// 1. Extract the short ID from the request URL ✅
 	// 2. Query the database to find the corresponding original URL ✅
@@ -30,18 +33,18 @@ func (s *YasuService) Get(ctx context.Context, code string) (string, error) {
 	// 4. publish an event to buffer for asynchronous processing (e.g., analytics, cache warming, etc.)
 	// 5. Return the original URL to the client
 
-	cached, err := s.Cache.Get(ctx, "url:"+code).Result()
-	if err == nil {
-		return cached, nil
-	}
-	if err != redis.Nil {
-		log.Printf("Redis GET error: %v", err)
-	}
+	// cached, err := s.Cache.Get(ctx, "url:"+code).Result()
+	// if err == nil {
+	// 	return cached, nil
+	// }
+	// if err != redis.Nil {
+	// 	log.Printf("Redis GET error: %v", err)
+	// }
 
 	var originalURL string
 	var expiresAt time.Time
 
-	err = s.PgConn.QueryRow(
+	err := s.PgConn.QueryRow(
 		`SELECT original_url, expires_at 
          FROM short_urls 
          WHERE code = $1`,
@@ -64,6 +67,14 @@ func (s *YasuService) Get(ctx context.Context, code string) (string, error) {
 			log.Printf("Redis SET error: %v", err)
 		}
 	}
+
+	// enqueue analytics event — non-blocking, never slows down redirect
+	s.Worker.Enqueue(outbox.ClickEvent{
+		Code:      code,
+		Referer:   header.Get("Referer"), // pass from handler
+		ClickedAt: time.Now().UTC(),
+		// Country + Device added in Phase 4 (GeoIP)
+	})
 
 	return originalURL, nil
 }
@@ -116,15 +127,6 @@ func (s *YasuService) Shorten(ctx context.Context, req ShortenRequest) (string, 
 			log.Printf("Redis SET error: %v", err)
 		}
 	}
-
-
-	// enqueue analytics event — non-blocking, never slows down redirect
-    // s.Worker.Enqueue(outbox.ClickEvent{
-    //     Code:      code,
-    //     Referer:   r.Header.Get("Referer"),   // pass from handler
-    //     ClickedAt: time.Now().UTC(),
-    //     // Country + Device added in Phase 4 (GeoIP)
-    // })
 
 	return code, nil
 }

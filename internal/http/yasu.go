@@ -7,6 +7,7 @@ import (
 	"time"
 	"urlshort/cmd/initialize"
 	"urlshort/internal/http/handler"
+	"urlshort/internal/service/outbox"
 	urlshortsvc "urlshort/internal/service/urlshort"
 
 	"github.com/google/uuid"
@@ -19,6 +20,10 @@ func RunYasuMcpServer(port string) error {
 }
 
 func RunYasuServer(port string) error {
+	clients := initialize.GetClients()
+
+	worker := outbox.NewWorker(clients.PgClient)
+	drainer := outbox.NewDrainer(clients.PgClient, clients.ChClient)
 
 	mainRouter := mux.NewRouter()
 	mainRouter.Use(RequestIDMiddleware)
@@ -26,14 +31,11 @@ func RunYasuServer(port string) error {
 	apiGroup := mainRouter.PathPrefix("/api/v1").Subrouter()
 
 	RegisterHealthRoute(apiGroup)
-	RegisterYasuRoutes(apiGroup)
+	RegisterYasuRoutes(apiGroup, clients, worker)
 
-	// worker  := outbox.NewWorker(pgConn, chStore)
-	// drainer := outbox.NewDrainer(pgConn, chStore)
-
-	// // start both as goroutines
-	// go worker.Start(ctx)
-	// go drainer.Start(ctx)
+	// start both as goroutines
+	go worker.Start(context.Background())
+	go drainer.Start(context.Background())
 
 	srv := &http.Server{
 		Handler: mainRouter,
@@ -49,12 +51,12 @@ func RunYasuServer(port string) error {
 	return nil
 }
 
-func RegisterYasuRoutes(router *mux.Router) {
+func RegisterYasuRoutes(router *mux.Router, clients *initialize.Clients, worker *outbox.Worker) {
 	// Initialize the YasuHandler with the YasuService, postgress client , buffer client, and any other dependencies it may require
-	clients := initialize.GetClients()
 	yasuHandler := &handler.YasuHandler{Service: &urlshortsvc.YasuService{
 		PgConn: clients.PgClient,
 		Cache:  clients.Cache,
+		Worker: worker,
 	}}
 
 	router.HandleFunc("/{code}", yasuHandler.Get).Methods("GET")
