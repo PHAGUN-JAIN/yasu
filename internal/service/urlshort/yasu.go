@@ -61,8 +61,6 @@ func (s *YasuService) Shorten(ctx context.Context, req ShortenRequest) (string, 
 	// 3. publish an event to buffer for asynchronous processing (e.g., analytics, cache warming, etc.)
 	// 4. Return the shortened URL to the client ✅
 
-	log.Printf("Received request to shorten URL: %s, expires at: %v, custom code: %s", req.URL, req.ExpiresAt, req.CustomCode)
-
 	code, err := generateCode()
 	if err != nil {
 		return "", err
@@ -81,6 +79,15 @@ func (s *YasuService) Shorten(ctx context.Context, req ShortenRequest) (string, 
 		log.Printf("Error inserting into database: %v", err)
 		return "", err
 	}
+
+
+	// enqueue analytics event — non-blocking, never slows down redirect
+    // s.Worker.Enqueue(outbox.ClickEvent{
+    //     Code:      code,
+    //     Referer:   r.Header.Get("Referer"),   // pass from handler
+    //     ClickedAt: time.Now().UTC(),
+    //     // Country + Device added in Phase 4 (GeoIP)
+    // })
 
 	return code, nil
 }

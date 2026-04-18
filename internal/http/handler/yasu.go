@@ -5,14 +5,14 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"urlshort/internal/service"
+	urlshortsvc "urlshort/internal/service/urlshort"
 	"urlshort/internal/utils/serde"
 
 	"github.com/gorilla/mux"
 )
 
 type YasuHandler struct {
-	Service *service.YasuService
+	Service *urlshortsvc.YasuService
 }
 
 // Get returns the shortened URL for a given original URL
@@ -35,16 +35,16 @@ func (h *YasuHandler) Get(w http.ResponseWriter, r *http.Request) {
 	log.Printf("extracted code: '%s'", code)
 
 	originalURL, err := h.Service.Get(r.Context(), code)
-	if errors.Is(err, service.ErrNotFound) {
-		http.Error(w, service.ErrNotFound.Error(), http.StatusNotFound)
+	if errors.Is(err, urlshortsvc.ErrNotFound) {
+		http.Error(w, urlshortsvc.ErrNotFound.Error(), http.StatusNotFound)
 		return
 	}
-	if errors.Is(err, service.ErrExpired) {
-		http.Error(w, service.ErrExpired.Error(), http.StatusGone)
+	if errors.Is(err, urlshortsvc.ErrExpired) {
+		http.Error(w, urlshortsvc.ErrExpired.Error(), http.StatusGone)
 		return
 	}
 	if err != nil {
-		http.Error(w, service.ErrInternal.Error(), http.StatusInternalServerError)
+		http.Error(w, urlshortsvc.ErrInternal.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -62,7 +62,7 @@ func (h *YasuHandler) Get(w http.ResponseWriter, r *http.Request) {
 //	  -d '{"url": "https://google.com"}' \
 //	  -v
 func (h *YasuHandler) Create(w http.ResponseWriter, r *http.Request) {
-	var req service.ShortenRequest
+	var req urlshortsvc.ShortenRequest
 	err := json.NewDecoder(r.Body).Decode(&req) // TODO: handle error and validate req
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -78,7 +78,7 @@ func (h *YasuHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	code, err := h.Service.Shorten(r.Context(), req)
 	if err != nil {
-		http.Error(w, service.ErrInternal.Error(), http.StatusInternalServerError)
+		http.Error(w, urlshortsvc.ErrInternal.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -95,4 +95,3 @@ func (h *YasuHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	result := h.Service.Delete()
 	w.Write([]byte(result))
 }
-
