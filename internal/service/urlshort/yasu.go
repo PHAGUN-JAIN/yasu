@@ -75,13 +75,10 @@ func (s *YasuService) Shorten(ctx context.Context, req ShortenRequest) (string, 
 	// 3. publish an event to buffer for asynchronous processing (e.g., analytics, cache warming, etc.)
 	// 4. Return the shortened URL to the client ✅
 
-	code, err := generateCode()
-	if err != nil {
-		return "", err
-	}
-
 	req.ExpiresAt = time.Now().UTC().Add(7 * 24 * time.Hour)
 
+	var code string
+	var err error
 	//Generate + retry (handle collision)
 	for i := 0; i < 3; i++ {
 		code, err = generateCode()
