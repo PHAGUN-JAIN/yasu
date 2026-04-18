@@ -2,6 +2,8 @@ package initialize
 
 import (
 	"database/sql"
+	"fmt"
+	"os"
 	"urlshort/migrations"
 
 	_ "github.com/lib/pq" // Import PostgreSQL driver
@@ -17,11 +19,16 @@ import (
 
 func GetPostgressClient() *sql.DB {
 
-	log.Println("Attempting to connect with: host=postgres user=postgres")
+	host := os.Getenv("POSTGRES_HOST")
+	if host == "" {
+		host = "postgres"
+	}
+
+	dsn := fmt.Sprintf("host=%s port=5432 user=postgres password=postgres dbname=yasu sslmode=disable", host)
+	log.Println("Attempting to connect with:", dsn)
 
 	//connect to database
-	// db, err := sql.Open("postgres", "host=postgres port=5432 user=postgres password=postgres dbname=yasu sslmode=disable")
-	db, err := sql.Open("postgres", "host=127.0.0.1 port=5432 user=postgres password=postgres dbname=yasu sslmode=disable")
+	db, err := sql.Open("postgres", dsn)
 	if err != nil {
 		log.Fatal(err)
 	}
