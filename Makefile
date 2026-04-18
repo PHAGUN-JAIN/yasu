@@ -18,7 +18,7 @@ build:
 up:
 	docker-compose -f $(DOCKER_COMPOSE_FILE) up -d --build 						# --build ensures that the image is rebuilt if there are changes
 
-# Bring up all services
+# Bring up development infrastructure services
 .PHONY: dev-up
 dev-up:
 	docker-compose -f $(DOCKER_DEV_COMPOSE_FILE) up -d --build 		
