@@ -7,3 +7,12 @@ services:
     ports:
       - "8000:8000"
     container_name: yasu
+  yasu_mcp:
+    build:
+      context: ../..
+      dockerfile: build/images/mcp.Dockerfile
+    image: yasu_mcp:v1
+    ports:
+      - "8001:8001"
+    container_name: yasu_mcp
+      

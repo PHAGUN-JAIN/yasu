@@ -1,4 +1,4 @@
-package urlshortmcp
+package main
 
 import (
 	"log"

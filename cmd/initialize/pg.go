@@ -20,7 +20,8 @@ func GetPostgressClient() *sql.DB {
 	log.Println("Attempting to connect with: host=postgres user=postgres")
 
 	//connect to database
-	db, err := sql.Open("postgres", "host=postgres port=5432 user=postgres password=postgres dbname=yasu sslmode=disable")
+	// db, err := sql.Open("postgres", "host=postgres port=5432 user=postgres password=postgres dbname=yasu sslmode=disable")
+	db, err := sql.Open("postgres", "host=127.0.0.1 port=5432 user=postgres password=postgres dbname=yasu sslmode=disable")
 	if err != nil {
 		log.Fatal(err)
 	}
