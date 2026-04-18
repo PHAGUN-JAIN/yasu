@@ -2,15 +2,14 @@ package serde
 
 import (
 	"errors"
-	"log"
 	"net/url"
 	"time"
-	"urlshort/internal/service"
+	urlshortsvc "urlshort/internal/service/urlshort"
 )
 
 type YasuSerializerInf interface {
 	ResolveDeserializer() error
-	ShortenDeserializer(req service.ShortenRequest) error
+	ShortenDeserializer(req urlshortsvc.ShortenRequest) error
 	YasuSerializer() error
 }
 
@@ -24,17 +23,15 @@ func (s *YasuSerializer) ResolveDeserializer() error {
 	return nil
 }
 
-func (s *YasuSerializer) ShortenDeserializer(req service.ShortenRequest) error {
+func (s *YasuSerializer) ShortenDeserializer(req urlshortsvc.ShortenRequest) error {
 	return shortvalidator(req)
 }
 
-func shortvalidator(req service.ShortenRequest) error {
+func shortvalidator(req urlshortsvc.ShortenRequest) error {
 	// TODO: Implement validation logic for the ShortenRequest struct
 	// 1. Validate that the URL field is a well-formed URL
 	// 2. Validate that the ExpiresAt field, if provided, is a future date
 	// 3. Validate that the CustomCode field, if provided, meets any specific requirements (e.g., length, allowed characters, etc.)
-	log.Printf("Validating ShortenRequest: URL=%s, ExpiresAt=%v, CustomCode=%s", req.URL, req.ExpiresAt, req.CustomCode)
-
 	_, err := url.ParseRequestURI(req.URL)
 	if err != nil {
 		return err

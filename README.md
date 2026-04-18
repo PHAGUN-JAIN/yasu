@@ -160,18 +160,48 @@ The pattern underneath most DB switches is the same:
 
 # Local Dev Guide
 
+1. build image
 
- 1. build image
  ```shell
  make build
  ```
 
- 2. run service with dependencies
+2. run service with dependencies
+
   ```shell
-  make up
+  make up     /OR
+
+  make dev-up
   ```
 
- 3. 
+3. 
+
  ```shell
  curl 127.0.0.1:8000/api/v1/health -ki
  ```
+
+4. How to test
+
+  #### step 1 — shorten
+
+  ```
+  curl -X POST http://localhost:8000/api/v1/shorten \
+    -H "Content-Type: application/json" \
+    -d '{"url": "https://google.com"}'
+  ```
+
+  #### step 2 — copy the code from response, test redirect
+  ```
+  curl -v http://localhost:8000/api/v1/<code>
+  ```
+
+  ```
+  should see:
+   < HTTP/1.1 302 Found
+   < Location: https://google.com
+  ```
+
+  #### step 3 — follow the redirect
+  ```
+  curl -L http://localhost:8000/api/v1/<code>
+  ```
