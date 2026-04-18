@@ -48,6 +48,9 @@ func (h *YasuHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// todo: send event for analytics
+	// channel p publish
+
 	// 302 — not 301, see design decisions in README
 	http.Redirect(w, r, originalURL, http.StatusFound)
 }
@@ -92,3 +95,4 @@ func (h *YasuHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	result := h.Service.Delete()
 	w.Write([]byte(result))
 }
+
