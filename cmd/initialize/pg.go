@@ -5,13 +5,9 @@ import (
 	"urlshort/migrations"
 
 	_ "github.com/lib/pq" // Import PostgreSQL driver
-
 	// ↑ blank import — just runs the package's init() to register the driver
-
-	"fmt"
 	"log"
 	"time"
-
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/database/postgres"
@@ -58,7 +54,7 @@ func RunMigrations(db *sql.DB) error {
 
 	src, err := iofs.New(migrations.Postgres, "postgres")
 	if err != nil {
-		return fmt.Errorf("migration source error: %w", err)
+		return err
 	}
 
 	m, err := migrate.NewWithInstance("iofs", src, "postgres", driver)
