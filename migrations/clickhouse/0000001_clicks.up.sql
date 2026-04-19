@@ -1,5 +1,4 @@
 -- clicks table
--- Run this manually or wire into your startup
 
 CREATE TABLE IF NOT EXISTS clicks
 (
