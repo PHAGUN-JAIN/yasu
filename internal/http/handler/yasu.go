@@ -33,7 +33,6 @@ func (h *YasuHandler) Get(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	code := vars["code"]
 	log.Printf("extracted code: '%s'", code)
-	log.Printf("request headers: %v", r.Header)
 
 	originalURL, err := h.Service.Get(r.Context(), code, r.Header)
 	if errors.Is(err, urlshortsvc.ErrNotFound) {
