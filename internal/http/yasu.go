@@ -32,6 +32,7 @@ func RunYasuServer(port string) error {
 
 	RegisterHealthRoute(apiGroup)
 	RegisterYasuRoutes(apiGroup, clients, worker)
+	RegisterAnalyticsRoutes(apiGroup, clients)
 
 	// start both as goroutines
 	go worker.Start(context.Background())
@@ -51,6 +52,14 @@ func RunYasuServer(port string) error {
 	return nil
 }
 
+func RegisterHealthRoute(router *mux.Router) {
+	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	},
+	).Methods("GET")
+}
+
 func RegisterYasuRoutes(router *mux.Router, clients *initialize.Clients, worker *outbox.Worker) {
 	// Initialize the YasuHandler with the YasuService, postgress client , buffer client, and any other dependencies it may require
 	yasuHandler := &handler.YasuHandler{Service: &urlshortsvc.YasuService{
@@ -64,12 +73,12 @@ func RegisterYasuRoutes(router *mux.Router, clients *initialize.Clients, worker 
 	router.HandleFunc("/{code}", yasuHandler.Delete).Methods("DELETE")
 }
 
-func RegisterHealthRoute(router *mux.Router) {
-	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
-	},
-	).Methods("GET")
+func RegisterAnalyticsRoutes(router *mux.Router, clients *initialize.Clients) {
+	analyticsHandler := &handler.AnalyticsHandler{Service: &urlshortsvc.AnalyticsService{
+		ChConn: clients.ChClient,
+	}}
+
+	router.HandleFunc("/analytics/{code}", analyticsHandler.Get).Methods("GET")
 }
 
 func LoggingMiddleware(next http.Handler) http.Handler {
