@@ -14,7 +14,7 @@ Phase 2 — Caching ✅
   4. store/redis.go     → Set and Get
   5. handler/handler.go → add Redis cache check to RedirectHandler
 
-Phase 3 — Analytics (the ClickHouse part) 
+Phase 3 — Analytics (the ClickHouse part) ✅
 
   6. Run migrations/001_clicks.sql against ClickHouse
   7. store/ch.go        → BatchInsert
@@ -29,8 +29,6 @@ Phase 4 — Privacy & compliance
   13. Map IP → country via GeoIP (github.com/oschwald/geoip2-golang)
   14. Discard the raw IP — store only the country in ClickHouse (GDPR/CCPA)
 
-## Run dependencies
-  cd docker && docker compose up -d
 
 ## Deliberate design decisions (be ready to explain these in interviews)
 
@@ -135,15 +133,6 @@ That's it. Discard the biased numbers, only use the fair ones.
 
 Switch to KGS when: you have multiple app servers burning through codes so fast that retry collisions become measurable. At 7-char Base62 that's roughly 3.5 trillion possible codes — you won't hit this problem for a very long time.
 
-
-## Key things to figure out yourself (intentional)
-
-  - Why does buffer.flush() swap the slice instead of clearing it?
-  - What happens to buffered events if the process crashes mid-flush?
-  - Why LowCardinality(String) for country and device in ClickHouse?
-  - What ORDER BY makes GetStats fast?
-  - What's the difference between ClickHouse native port (9000) vs HTTP (8123)?
-  
 # notes
 
 The pattern underneath most DB switches is the same:
@@ -156,7 +145,6 @@ The pattern underneath most DB switches is the same:
 
 - When it breaks down (at what scale or use case it fails)
 
- 
 
 # Local Dev Guide
 
