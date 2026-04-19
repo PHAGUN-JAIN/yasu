@@ -9,7 +9,7 @@ import (
 
 // ClickEvent represents a single redirect event
 type ClickEvent struct {
-	ID        int
+	ID        int64
 	Code      string
 	Country   string
 	Device    string
