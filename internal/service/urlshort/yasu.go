@@ -13,6 +13,8 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+const cacheWriteTimeout = 200 * time.Millisecond
+
 type YasuService struct {
 	PgConn *sql.DB
 	Cache  *redis.Client
@@ -67,10 +69,10 @@ func (s *YasuService) Get(ctx context.Context, code string, header http.Header) 
 		if expiresAt.IsZero() {
 			ttl = 24 * time.Hour
 		} // Default TTL for permanent links
-		cacheCtx, cancel := context.WithTimeout(ctx, 200*time.Millisecond)
+		cacheCtx, cancel := context.WithTimeout(ctx, cacheWriteTimeout)
 		defer cancel()
 		if err := s.Cache.Set(cacheCtx, "url:"+code, originalURL, ttl).Err(); err != nil {
-			log.Printf("Redis SET error for %s: %v", code, err)
+			log.Printf("Redis SET error for key url:%s: %v", code, err)
 		}
 	}
 
