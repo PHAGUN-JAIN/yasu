@@ -2,8 +2,8 @@ package app
 
 import (
 	"log"
-	"urlshort/cmd/initialize"
 	router "urlshort/internal/http"
+	"urlshort/internal/repository"
 )
 
 // TODO: wire everything together here
@@ -17,12 +17,12 @@ import (
 
 func RunApplication() {
 	log.Println("Running database migrations...")
-	err := initialize.RunPostgresMigrations()
+	err := repository.RunPostgresMigrations()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	err = initialize.RunClickHouseMigrations()
+	err = repository.RunClickHouseMigrations()
 	if err != nil {
 		log.Fatal(err)
 	}

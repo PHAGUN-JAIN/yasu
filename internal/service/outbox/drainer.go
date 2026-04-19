@@ -20,7 +20,7 @@ func NewDrainer(pg *sql.DB, ch driver.Conn) *Drainer {
 	return &Drainer{
 		pg:        pg,
 		ch:        ch,
-		pollEvery: 5 * time.Second,
+		pollEvery: 10 * time.Second,
 	}
 }
 
@@ -51,7 +51,7 @@ func (d *Drainer) drain(ctx context.Context) {
 	defer tx.Rollback()
 
 	rows, err := tx.Query(`
-	    SELECT id, code, country, device, referer, clicked_at
+	    SELECT code, country, device, referer, clicked_at
 	    FROM click_events
 	    WHERE processed = false
 	    ORDER BY id
@@ -86,12 +86,12 @@ func (d *Drainer) drain(ctx context.Context) {
 		return
 	}
 
-	var ids []string
+	var codes []string
 	for _, event := range batch {
-		ids = append(ids, event.Code) // assuming code is unique identifier, replace with actual ID if available
+		codes = append(codes, event.Code) // assuming code is unique identifier, replace with actual ID if available
 	}
 
-	_, err = tx.Exec(`UPDATE click_events SET processed = true WHERE id = ANY($1)`, ids)
+	_, err = tx.Exec(`UPDATE click_events SET processed = true WHERE code = ANY($1)`, codes)
 	if err != nil {
 		log.Printf("drainer: failed to mark events as processed: %v", err)
 		return
@@ -107,6 +107,7 @@ func (d *Drainer) drain(ctx context.Context) {
 }
 
 func IngestClickHouse(conn driver.Conn, batch []ClickEvent) error {
+	// TODO: implement me
 
 	return nil
 }
