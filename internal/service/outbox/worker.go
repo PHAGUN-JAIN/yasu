@@ -9,10 +9,12 @@ import (
 
 // ClickEvent represents a single redirect event
 type ClickEvent struct {
+	ID        int64
 	Code      string
 	Country   string
 	Device    string
 	Referer   string
+	IP        string
 	ClickedAt time.Time
 }
 
@@ -94,7 +96,7 @@ func (w *Worker) flush(ctx context.Context, batch []ClickEvent) {
 }
 
 func bulkInsert(db *sql.DB, click_events []ClickEvent) error {
-	// 1. Start a transaction
+
 	tx, err := db.Begin()
 	if err != nil {
 		return err
@@ -102,22 +104,21 @@ func bulkInsert(db *sql.DB, click_events []ClickEvent) error {
 	// Ensure rollback if any step fails
 	defer tx.Rollback()
 
-	// 2. Prepare the statement once
+	// Prepare the statement once
 	// PostgreSQL uses $1, $2, $3 placeholders, not ?
-	stmt, err := tx.Prepare("INSERT INTO click_events(code, referer, clicked_at) VALUES($1, $2, $3)")
+	stmt, err := tx.Prepare("INSERT INTO click_events(code, device, referer, clicked_at) VALUES($1, $2, $3, $4)")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
-	// 3. Execute for each record
+	// Execute the prepared statement for each event
 	for _, u := range click_events {
-		log.Printf("worker: Inserting click event: code=%s, referer=%s, clicked_at=%s", u.Code, u.Referer, u.ClickedAt)
-		if _, err := stmt.Exec(u.Code, u.Referer, u.ClickedAt); err != nil {
+		log.Printf("worker: Inserting click event: code=%s, device=%s, referer=%s, clicked_at=%s", u.Code, u.Device, u.Referer, u.ClickedAt)
+		if _, err := stmt.Exec(u.Code, u.Device, u.Referer, u.ClickedAt); err != nil {
 			return err
 		}
 	}
 
-	// 4. Commit all changes at once
 	return tx.Commit()
 }

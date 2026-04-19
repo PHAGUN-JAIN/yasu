@@ -13,10 +13,12 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+const cacheWriteTimeout = 200 * time.Millisecond
+
 type YasuService struct {
 	PgConn *sql.DB
 	Cache  *redis.Client
-	Worker *outbox.Worker // for enqueuing events to buffer
+	Worker *outbox.Worker
 }
 
 type ShortenRequest struct {
@@ -26,57 +28,72 @@ type ShortenRequest struct {
 }
 
 func (s *YasuService) Get(ctx context.Context, code string, header http.Header) (string, error) {
-	// TODO: Implement logic to retrieve the original URL based on the short ID
-	// 1. Extract the short ID from the request URL ✅
-	// 2. Query the database to find the corresponding original URL ✅
-	// 3. Handle cases where the short ID does not exist or has expired ✅
-	// 4. publish an event to buffer for asynchronous processing (e.g., analytics, cache warming, etc.)
-	// 5. Return the original URL to the client
+	// 1. Redis Cache Lookup
+	cached, err := s.Cache.Get(ctx, "url:"+code).Result()
+	if err == nil {
+		s.trackClick(code, header)
+		return cached, nil
+	}
 
-	// cached, err := s.Cache.Get(ctx, "url:"+code).Result()
-	// if err == nil {
-	// 	return cached, nil
-	// }
-	// if err != redis.Nil {
-	// 	log.Printf("Redis GET error: %v", err)
-	// }
+	if err != redis.Nil {
+		log.Printf("Redis GET error for %s: %v", code, err)
+	}
 
+	// 2. Postgres Lookup
 	var originalURL string
 	var expiresAt time.Time
 
-	err := s.PgConn.QueryRow(
+	err = s.PgConn.QueryRowContext(ctx, // Use QueryRowContext for better timeout handling
 		`SELECT original_url, expires_at 
          FROM short_urls 
          WHERE code = $1`,
 		code,
 	).Scan(&originalURL, &expiresAt)
+
 	if err != nil {
-		log.Printf("Error querying database for code %s: %v", code, err)
 		if errors.Is(err, sql.ErrNoRows) {
 			return "", ErrNotFound
 		}
-		return "", ErrInternal // wrap the error with additional context
+		log.Printf("DB error for code %s: %v", code, err)
+		return "", ErrInternal
 	}
 
-	if expiresAt.Before(time.Now().UTC()) {
+	// 3. Expiration Check
+	if !expiresAt.IsZero() && expiresAt.Before(time.Now().UTC()) {
 		return "", ErrExpired
 	}
 
-	if ttl := time.Until(expiresAt); ttl > 0 {
-		if err := s.Cache.Set(ctx, "url:"+code, originalURL, ttl).Err(); err != nil {
-			log.Printf("Redis SET error: %v", err)
+	// 4. Update Cache synchronously with a short timeout so it doesn't hold up the request for long
+	ttl := time.Until(expiresAt)
+	if ttl > 0 || expiresAt.IsZero() {
+		if expiresAt.IsZero() {
+			ttl = 24 * time.Hour
+		} // Default TTL for permanent links
+		cacheCtx, cancel := context.WithTimeout(ctx, cacheWriteTimeout)
+		defer cancel()
+		if err := s.Cache.Set(cacheCtx, "url:"+code, originalURL, ttl).Err(); err != nil {
+			log.Printf("Redis SET error for key url:%s: %v", code, err)
 		}
 	}
 
-	// enqueue analytics event — non-blocking, never slows down redirect
-	s.Worker.Enqueue(outbox.ClickEvent{
-		Code:      code,
-		Referer:   header.Get("Referer"), // pass from handler
-		ClickedAt: time.Now().UTC(),
-		// Country + Device added in Phase 4 (GeoIP)
-	})
+	// 5. Track Analytics
+	s.trackClick(code, header)
 
 	return originalURL, nil
+}
+
+// Helper to keep the main logic clean
+func (s *YasuService) trackClick(code string, header http.Header) {
+	referer := header.Get("Referer")
+	if referer == "" {
+		referer = "direct"
+	}
+	s.Worker.Enqueue(outbox.ClickEvent{
+		Code:      code,
+		Referer:   referer,
+		Device:    header.Get("User-Agent"),
+		ClickedAt: time.Now().UTC(),
+	})
 }
 
 func (s *YasuService) Shorten(ctx context.Context, req ShortenRequest) (string, error) {
