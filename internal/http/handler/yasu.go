@@ -18,8 +18,8 @@ type YasuHandler struct {
 // Get returns the shortened URL for a given original URL
 func (h *YasuHandler) Get(w http.ResponseWriter, r *http.Request) {
 	//  1. extract code from URL ✅
-	//  2. check Redis cache first
-	//  3. if cache miss → query Postgres
+	//  2. check Redis cache first ✅
+	//  3. if cache miss → query Postgres ✅
 	//  4. if not found → 404    ✅
 	//  5. if found but expired → 410 Gone ✅
 	//  6. redirect 302 to original URL ✅
@@ -33,6 +33,7 @@ func (h *YasuHandler) Get(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	code := vars["code"]
 	log.Printf("extracted code: '%s'", code)
+	log.Printf("request headers: %v", r.Header)
 
 	originalURL, err := h.Service.Get(r.Context(), code, r.Header)
 	if errors.Is(err, urlshortsvc.ErrNotFound) {
@@ -53,11 +54,6 @@ func (h *YasuHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 // Create creates a new shortened URL for a given original URL
-//
-//	curl -X POST http://localhost:8000/api/v1/shorten \
-//	  -H "Content-Type: application/json" \
-//	  -d '{"url": "https://google.com"}' \
-//	  -v
 func (h *YasuHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req urlshortsvc.ShortenRequest
 	err := json.NewDecoder(r.Body).Decode(&req) // TODO: handle error and validate req

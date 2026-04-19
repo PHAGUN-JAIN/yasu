@@ -1,20 +1,20 @@
 # YASU - Yet Another Short URL
 urlshortner service — URL shortener with ClickHouse analytics
 
-## Build order (suggested)
+## Build order
 
-Phase 1 — Core flow (no analytics yet)
+Phase 1 — Core flow (no analytics yet) ✅
 
   1. store/pg.go        → Save and FindByCode
   2. handler/handler.go → ShortenHandler + RedirectHandler (skip cache for now)
   3. cmd/server/main.go → wire up, test with curl
 
-Phase 2 — Caching
+Phase 2 — Caching ✅
 
   4. store/redis.go     → Set and Get
   5. handler/handler.go → add Redis cache check to RedirectHandler
 
-Phase 3 — Analytics (the ClickHouse part)
+Phase 3 — Analytics (the ClickHouse part) 
 
   6. Run migrations/001_clicks.sql against ClickHouse
   7. store/ch.go        → BatchInsert
