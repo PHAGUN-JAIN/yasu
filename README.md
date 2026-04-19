@@ -206,7 +206,7 @@ The pattern underneath most DB switches is the same:
   curl -L http://localhost:8000/api/v1/<code>
   ```
 
-5. access postgress
+5. access postgres
 
 ```
 docker exec -it compose-postgres-1 psql -U postgres
