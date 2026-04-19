@@ -61,15 +61,18 @@ func (s *YasuService) Get(ctx context.Context, code string, header http.Header) 
 		return "", ErrExpired
 	}
 
-	// 4. Update Cache (Async so it doesn't block the redirect)
-	go func() {
-		if ttl := time.Until(expiresAt); ttl > 0 || expiresAt.IsZero() {
-			if expiresAt.IsZero() {
-				ttl = 24 * time.Hour
-			} // Default TTL for permanent links
-			s.Cache.Set(context.Background(), "url:"+code, originalURL, ttl)
+	// 4. Update Cache synchronously with a short timeout so it doesn't hold up the request for long
+	ttl := time.Until(expiresAt)
+	if ttl > 0 || expiresAt.IsZero() {
+		if expiresAt.IsZero() {
+			ttl = 24 * time.Hour
+		} // Default TTL for permanent links
+		cacheCtx, cancel := context.WithTimeout(ctx, 200*time.Millisecond)
+		defer cancel()
+		if err := s.Cache.Set(cacheCtx, "url:"+code, originalURL, ttl).Err(); err != nil {
+			log.Printf("Redis SET error for %s: %v", code, err)
 		}
-	}()
+	}
 
 	// 5. Track Analytics
 	s.trackClick(code, header)
