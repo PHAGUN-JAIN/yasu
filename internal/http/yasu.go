@@ -14,11 +14,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func RunYasuMcpServer(port string) error {
-	// TODO: Implement MCP server logic here
-	return nil
-}
-
 func RunYasuServer(port string) error {
 	clients := initialize.GetClients()
 
