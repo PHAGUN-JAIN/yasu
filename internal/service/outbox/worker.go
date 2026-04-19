@@ -47,7 +47,7 @@ func (w *Worker) Enqueue(e ClickEvent) {
 
 // Start runs the drain loop — call this in main.go as a goroutine
 func (w *Worker) Start(ctx context.Context) {
-	log.Printf("Outbox Worker started with batch size %d and flush interval %s", w.batchSize, w.flushEvery)
+	log.Printf("Worker: started with batch size %d and flush interval %s", w.batchSize, w.flushEvery)
 	ticker := time.NewTicker(w.flushEvery)
 	defer ticker.Stop()
 
@@ -71,7 +71,7 @@ func (w *Worker) Start(ctx context.Context) {
 		case <-ctx.Done():
 			// drain remaining events before shutdown
 			if len(batch) > 0 {
-				log.Printf("shutting down — flushing %d remaining events", len(batch))
+				log.Printf("worker: shutting down — flushing %d remaining events", len(batch))
 				w.flush(ctx, batch)
 			}
 			return
@@ -81,16 +81,16 @@ func (w *Worker) Start(ctx context.Context) {
 
 // flush writes batch to Postgres outbox
 func (w *Worker) flush(ctx context.Context, batch []ClickEvent) {
-	log.Printf("flushing %d events to Postgres outbox", len(batch))
+	log.Printf("worker: flushing %d events to Postgres outbox", len(batch))
 	if len(batch) == 0 {
 		return
 	}
 
 	if err := bulkInsert(w.pg, batch); err != nil {
-		log.Printf("ERROR: failed to flush %d events to Postgres: %v", len(batch), err)
+		log.Printf("worker: ERROR: failed to flush %d events to Postgres: %v", len(batch), err)
 		return
 	}
-	log.Printf("flushed %d events to Postgres", len(batch))
+	log.Printf("worker: flushed %d events to Postgres", len(batch))
 }
 
 func bulkInsert(db *sql.DB, click_events []ClickEvent) error {
@@ -112,7 +112,7 @@ func bulkInsert(db *sql.DB, click_events []ClickEvent) error {
 
 	// 3. Execute for each record
 	for _, u := range click_events {
-		log.Printf("Inserting click event: code=%s, referer=%s, clicked_at=%s", u.Code, u.Referer, u.ClickedAt)
+		log.Printf("worker: Inserting click event: code=%s, referer=%s, clicked_at=%s", u.Code, u.Referer, u.ClickedAt)
 		if _, err := stmt.Exec(u.Code, u.Referer, u.ClickedAt); err != nil {
 			return err
 		}

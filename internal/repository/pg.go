@@ -1,4 +1,4 @@
-package initialize
+package repository
 
 import (
 	"database/sql"
@@ -59,7 +59,7 @@ func RunPostgresMigrations() error {
 
 	entries, _ := migrations.Postgres.ReadDir("postgres")
 	for _, e := range entries {
-		log.Printf("found migration file: %s", e.Name())
+		log.Printf("found migration file PG: %s", e.Name())
 	}
 
 	src, err := iofs.New(migrations.Postgres, "postgres")

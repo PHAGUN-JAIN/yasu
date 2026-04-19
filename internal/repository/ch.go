@@ -1,4 +1,4 @@
-package initialize
+package repository
 
 import (
 	"context"
@@ -16,15 +16,16 @@ import (
 // reference:https://clickhouse.com/docs/integrations/go
 
 func GetChClient() driver.Conn {
+	log.Printf("Attempting to connect with: clickhouse:9000")
+
 	ctx := context.Background()
 	conn, err := clickhouse.Open(&clickhouse.Options{
 		Addr: []string{"clickhouse:9000"},
 		Auth: clickhouse.Auth{
 			Database: "yasu_analytics",
-			Username: "default",
-			Password: "default",
+			Username: "yasu",
+			Password: "yasu",
 		},
-		// Detailed client info for ClickHouse system logs
 		ClientInfo: clickhouse.ClientInfo{
 			Products: []struct{ Name, Version string }{
 				{Name: "yasu-go-client", Version: "0.1"},
@@ -40,9 +41,9 @@ func GetChClient() driver.Conn {
 	if err := conn.Ping(ctx); err != nil {
 		// Handle specific ClickHouse server exceptions
 		if exception, ok := err.(*clickhouse.Exception); ok {
-			log.Printf("ClickHouse Exception [%d]: %s", exception.Code, exception.Message)
+			log.Fatalf("ClickHouse Exception [%d]: %s", exception.Code, exception.Message)
 		} else {
-			log.Printf("ClickHouse Ping failed: %v", err)
+			log.Fatalf("ClickHouse Ping failed: %v", err)
 		}
 		return nil
 	}
@@ -59,7 +60,7 @@ func RunClickHouseMigrations() error {
 
 	entries, _ := migrations.ClickHouse.ReadDir("clickhouse")
 	for _, e := range entries {
-		log.Printf("found migration file: %s", e.Name())
+		log.Printf("found migration file CH: %s", e.Name())
 	}
 
 	src, err := iofs.New(migrations.ClickHouse, "clickhouse")
@@ -67,7 +68,8 @@ func RunClickHouseMigrations() error {
 		return err
 	}
 
-	m, err := migrate.NewWithSourceInstance("iofs", src, "clickhouse://clickhouse:9000?database=yasu_analytics")
+	dsn := "clickhouse://yasu:yasu@clickhouse:9000/yasu_analytics?x-multi-statement=true"
+	m, err := migrate.NewWithSourceInstance("iofs", src, dsn)
 	if err != nil {
 		return err
 	}
@@ -79,4 +81,23 @@ func RunClickHouseMigrations() error {
 	}
 
 	return nil
+}
+
+// CHStore handles analytics writes and reads
+// Use: github.com/ClickHouse/clickhouse-go/v2
+
+type CHStore struct {
+	// TODO: hold clickhouse.Conn
+}
+
+// TODO: implement BatchInsert(ctx, []ClickEvent) error
+// Key learning: use clickhouse.PrepareBatch for efficient bulk inserts
+// Read the clickhouse-go docs on batch inserts - it's different from pgx
+
+// TODO: implement GetStats(ctx, shortCode string) (*Stats, error)
+// Hint: think about what aggregations you need
+// SELECT count(), uniq(ip), any(country) ... GROUP BY toDate(clicked_at)
+
+type Stats struct {
+	// TODO: TotalClicks, ByCountry map[string]int, ByDevice map[string]int, ByDay []DayStat
 }

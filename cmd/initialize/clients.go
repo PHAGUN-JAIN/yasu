@@ -2,6 +2,7 @@ package initialize
 
 import (
 	"database/sql"
+	"urlshort/internal/repository"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
 	"github.com/redis/go-redis/v9"
@@ -19,8 +20,8 @@ type Clients struct {
 
 func GetClients() *Clients {
 	return &Clients{
-		PgClient: GetPostgressClient(),
+		PgClient: repository.GetPostgressClient(),
 		Cache:    GetRedisClient(),
-		ChClient: GetChClient(),
+		ChClient: repository.GetChClient(),
 	}
 }

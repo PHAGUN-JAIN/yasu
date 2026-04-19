@@ -205,3 +205,15 @@ The pattern underneath most DB switches is the same:
   ```
   curl -L http://localhost:8000/api/v1/<code>
   ```
+
+5. access postgress
+
+```
+docker exec -it compose-postgres-1 psql -U postgres
+```
+
+6. access clickhouse
+
+```
+docker exec -it compose-clickhouse-1 clickhouse-client
+```
