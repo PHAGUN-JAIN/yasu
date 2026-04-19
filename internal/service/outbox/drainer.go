@@ -3,10 +3,12 @@ package outbox
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
 	"time"
 
 	"github.com/ClickHouse/clickhouse-go/v2/lib/driver"
+	"github.com/lib/pq"
 )
 
 // Drainer polls the Postgres outbox and inserts into ClickHouse
@@ -51,7 +53,7 @@ func (d *Drainer) drain(ctx context.Context) {
 	defer tx.Rollback()
 
 	rows, err := tx.Query(`
-	    SELECT code, country, device, referer, clicked_at
+	    SELECT id, code, country, device, referer, clicked_at
 	    FROM click_events
 	    WHERE processed = false
 	    ORDER BY id
@@ -67,7 +69,7 @@ func (d *Drainer) drain(ctx context.Context) {
 	var batch []ClickEvent
 	for rows.Next() {
 		var event ClickEvent
-		if err := rows.Scan(&event.Code, &event.Country, &event.Device, &event.Referer, &event.ClickedAt); err != nil {
+		if err := rows.Scan(&event.ID, &event.Code, &event.Country, &event.Device, &event.Referer, &event.ClickedAt); err != nil {
 			log.Printf("drainer: failed to scan row: %v", err)
 			return
 		}
@@ -86,12 +88,12 @@ func (d *Drainer) drain(ctx context.Context) {
 		return
 	}
 
-	var codes []string
+	var ids []int64
 	for _, event := range batch {
-		codes = append(codes, event.Code) // assuming code is unique identifier, replace with actual ID if available
+		ids = append(ids, event.ID)
 	}
 
-	_, err = tx.Exec(`UPDATE click_events SET processed = true WHERE code = ANY($1)`, codes)
+	_, err = tx.Exec(`UPDATE click_events SET processed = true WHERE id = ANY($1)`, pq.Array(ids))
 	if err != nil {
 		log.Printf("drainer: failed to mark events as processed: %v", err)
 		return
@@ -107,7 +109,19 @@ func (d *Drainer) drain(ctx context.Context) {
 }
 
 func IngestClickHouse(conn driver.Conn, batch []ClickEvent) error {
-	// TODO: implement me
-
+	ctx := context.Background()
+	b, err := conn.PrepareBatch(ctx, "INSERT INTO clicks (short_code, ip, country, device, referer, clicked_at)")
+	if err != nil {
+		return fmt.Errorf("clickhouse: prepare batch: %w", err)
+	}
+	for _, event := range batch {
+		// ip is not captured in click_events outbox; pass empty string for now
+		if err := b.Append(event.Code, "", event.Country, event.Device, event.Referer, event.ClickedAt); err != nil {
+			return fmt.Errorf("clickhouse: append event for code %s: %w", event.Code, err)
+		}
+	}
+	if err := b.Send(); err != nil {
+		return fmt.Errorf("clickhouse: send batch: %w", err)
+	}
 	return nil
 }
