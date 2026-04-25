@@ -174,14 +174,14 @@ The pattern underneath most DB switches is the same:
 
   #### step 1 — shorten
 
-  ```
+  ```sh
   curl -X POST http://localhost:8000/api/v1/shorten \
     -H "Content-Type: application/json" \
     -d '{"url": "https://google.com"}'
   ```
 
   #### step 2 — copy the code from response, test redirect
-  ```
+  ```sh
   curl -v http://localhost:8000/api/v1/<code>
   ```
 
@@ -192,18 +192,78 @@ The pattern underneath most DB switches is the same:
   ```
 
   #### step 3 — follow the redirect
-  ```
+
+  ```sh
   curl -L http://localhost:8000/api/v1/<code>
   ```
 
 5. access postgres
 
-```
+```sh
 docker exec -it compose-postgres-1 psql -U postgres
 ```
 
 6. access clickhouse
 
-```
+```bash
 docker exec -it compose-clickhouse-1 clickhouse-client
 ```
+
+
+7. MCP
+
+```sh
+curl -X POST http://localhost:8001/mcp   -H "Content-Type: application/json"   -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "initialize",
+    "params": { 
+      "protocolVersion": "2024-11-05",
+      "clientInfo": { "name": "curl-test", "version": "1.0.0" },
+      "capabilities": {}
+    }
+  }' -ki
+```
+
+
+```sh
+curl -X POST http://localhost:8001/mcp \
+  -H "Content-Type: application/json" \
+  -H "Mcp-Session-Id: FSHGGWYXCJDNSCEC7RUHHJFNXA" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 2,
+    "method": "tools/list",
+    "params": {}
+  }'
+```
+
+```sh
+curl -X POST http://localhost:8001/mcp \
+  -H "Content-Type: application/json" \
+  -H "Mcp-Session-Id: FSHGGWYXCJDNSCEC7RUHHJFNXA" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 3,
+    "method": "tools/call",
+    "params": {
+      "name": "shorten_url",
+      "arguments": { "url": "https://google.com" }
+    }
+  }'
+  ```
+
+  ```sh
+  curl -X POST http://localhost:8001/mcp \
+  -H "Content-Type: application/json" \
+  -H "Mcp-Session-Id: FSHGGWYXCJDNSCEC7RUHHJFNXA" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 4,
+    "method": "tools/call",
+    "params": {
+      "name": "resolve_url",
+      "arguments": { "code": "prr1kaP" }
+    }
+  }'
+  ```
