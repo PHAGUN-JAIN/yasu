@@ -18,7 +18,7 @@ const cacheWriteTimeout = 200 * time.Millisecond
 type YasuService struct {
 	PgConn *sql.DB
 	Cache  *redis.Client
-	Worker *outbox.Worker
+	worker *outbox.Worker
 }
 
 type ShortenRequest struct {
@@ -84,14 +84,24 @@ func (s *YasuService) Get(ctx context.Context, code string, header http.Header) 
 
 // Helper to keep the main logic clean
 func (s *YasuService) trackClick(code string, header http.Header) {
-	referer := header.Get("Referer")
-	if referer == "" {
-		referer = "direct"
+
+	var referer string
+	var device string
+	if header != nil {
+		referer := header.Get("Referer")
+		if referer == "" {
+			referer = "direct"
+		}
+		device = header.Get("User-Agent")
+		if device == "" {
+			device = "unknown"
+		}
 	}
-	s.Worker.Enqueue(outbox.ClickEvent{
+
+	s.worker.Enqueue(outbox.ClickEvent{
 		Code:      code,
 		Referer:   referer,
-		Device:    header.Get("User-Agent"),
+		Device:    device,
 		ClickedAt: time.Now().UTC(),
 	})
 }
@@ -174,4 +184,12 @@ func generateCode() (string, error) {
 	}
 
 	return string(bytes), nil
+}
+
+func NewYasuService(pg *sql.DB, cache *redis.Client, worker *outbox.Worker) *YasuService {
+	return &YasuService{
+		PgConn: pg,
+		Cache:  cache,
+		worker: worker,
+	}
 }

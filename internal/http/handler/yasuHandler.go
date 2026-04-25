@@ -87,3 +87,4 @@ func (h *YasuHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	result := h.Service.Delete()
 	w.Write([]byte(result))
 }
+

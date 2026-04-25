@@ -1,9 +1,11 @@
 package app
 
 import (
+	"context"
 	"flag"
 	"log"
 	"net/http"
+	"urlshort/cmd/initialize"
 	urlshortmcp "urlshort/internal/mcp"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -18,14 +20,19 @@ func RunApplication() {
 	//if err := mcpServer.Run(context.Background(), t); err != nil {
 	//	log.Panic("Error initializing MCP server", log.ErrorField(err))
 	//}
+	clients := initialize.GetClients()
+
+	server, worker, drainer := urlshortmcp.NewMCPServer(clients)
 
 	handler := mcp.NewStreamableHTTPHandler(
 		func(req *http.Request) *mcp.Server {
-			server := urlshortmcp.NewMCPServer()
 			return server
 		},
 		nil,
 	)
+
+	go worker.Start(context.Background())
+	go drainer.Start(context.Background())
 
 	log.Printf("%s", "MCP HTTP server listening on "+*httpAddr)
 
@@ -33,16 +40,3 @@ func RunApplication() {
 		log.Fatalf("Error starting HTTP server: %v", err)
 	}
 }
-
-// AuthenticateSession Helper to authenticate and store session on initializing
-// func AuthenticateSession(sessionStore *authMcp.SessionStore, accessToken, tenantID string) string {
-// 	sessionID := authMcp.GenerateSessionID()
-// 	sessionStore.Set(sessionID, &authMcp.SessionContext{
-// 		AccessToken: accessToken,
-// 		TenantID:    tenantID,
-// 		CreatedAt:   time.Now(),
-// 		LastAccess:  time.Now(),
-// 	})
-// 	log.Infof("Created session %s for tenant %s", sessionID, tenantID)
-// 	return sessionID
-// }

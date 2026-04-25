@@ -145,6 +145,8 @@ The pattern underneath most DB switches is the same:
 
 - When it breaks down (at what scale or use case it fails)
 
+- I used a buffered channel to decouple the redirect path from the write path. The redirect adds nanoseconds of latency — just a channel send. A goroutine drains the channel into Postgres in batches using the outbox pattern with SKIP LOCKED, which gives crash durability without Kafka. At our scale this comfortably handles 50k events/sec. I'd introduce Kafka only if I needed multi-service fan-out or event replay.
+
 
 # Local Dev Guide
 

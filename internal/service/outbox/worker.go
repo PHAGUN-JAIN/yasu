@@ -3,7 +3,9 @@ package outbox
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"log"
+	"strings"
 	"time"
 )
 
@@ -95,7 +97,7 @@ func (w *Worker) flush(ctx context.Context, batch []ClickEvent) {
 	log.Printf("worker: flushed %d events to Postgres", len(batch))
 }
 
-func bulkInsert(db *sql.DB, click_events []ClickEvent) error {
+func bulkInsert_(db *sql.DB, click_events []ClickEvent) error {
 
 	tx, err := db.Begin()
 	if err != nil {
@@ -121,4 +123,31 @@ func bulkInsert(db *sql.DB, click_events []ClickEvent) error {
 	}
 
 	return tx.Commit()
+}
+
+func bulkInsert(db *sql.DB, events []ClickEvent) error {
+	if len(events) == 0 {
+		return nil
+	}
+
+	// build: INSERT INTO click_events(code, device, referer, ip, clicked_at)
+	// VALUES ($1,$2,$3,$4,$5), ($6,$7,$8,$9,$10), ...
+	var query strings.Builder
+	query.WriteString("INSERT INTO click_events(code, device, referer, ip, clicked_at) VALUES ")
+	args := make([]any, 0, len(events)*5)
+
+	for i, e := range events {
+		if i > 0 {
+			query.WriteString(",")
+		}
+		base := i * 5
+		fmt.Fprintf(&query, "($%d,$%d,$%d,$%d,$%d)", base+1, base+2, base+3, base+4, base+5)
+		args = append(args, e.Code, e.Device, e.Referer, e.IP, e.ClickedAt)
+	}
+
+	_, err := db.Exec(query.String(), args...)
+	if err != nil {
+		return err
+	}
+	return err
 }
