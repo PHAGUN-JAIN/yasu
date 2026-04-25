@@ -64,11 +64,11 @@ services:
       clickhouse:
         condition: service_healthy
         
-  # yasu_mcp:
-  #   extends:
-  #     file: ../images/build.yaml
-  #     service: yasu_mcp
-  #   depends_on:
-  #     - yasu
-  #   networks:
-  #     - yasu-network
+  yasu_mcp:
+    extends:
+      file: ../images/build.yaml
+      service: yasu_mcp
+    depends_on:
+      - yasu
+    networks:
+      - yasu-network

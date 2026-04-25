@@ -1,9 +1,16 @@
 package app
 
 import (
+	"context"
 	"flag"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
+	"urlshort/cmd/initialize"
 	urlshortmcp "urlshort/internal/mcp"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -18,31 +25,54 @@ func RunApplication() {
 	//if err := mcpServer.Run(context.Background(), t); err != nil {
 	//	log.Panic("Error initializing MCP server", log.ErrorField(err))
 	//}
+	clients := initialize.GetClients()
+
+	server, worker, drainer := urlshortmcp.NewMCPServer(clients)
 
 	handler := mcp.NewStreamableHTTPHandler(
 		func(req *http.Request) *mcp.Server {
-			server := urlshortmcp.NewMCPServer()
 			return server
 		},
 		nil,
 	)
 
-	log.Printf("%s", "MCP HTTP server listening on "+*httpAddr)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
-	if err := http.ListenAndServe(*httpAddr, handler); err != nil {
-		log.Fatalf("Error starting HTTP server: %v", err)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		worker.Start(ctx)
+	}()
+	go func() {
+		defer wg.Done()
+		drainer.Start(ctx)
+	}()
+
+	httpServer := &http.Server{
+		Addr:    *httpAddr,
+		Handler: handler,
 	}
-}
 
-// AuthenticateSession Helper to authenticate and store session on initializing
-// func AuthenticateSession(sessionStore *authMcp.SessionStore, accessToken, tenantID string) string {
-// 	sessionID := authMcp.GenerateSessionID()
-// 	sessionStore.Set(sessionID, &authMcp.SessionContext{
-// 		AccessToken: accessToken,
-// 		TenantID:    tenantID,
-// 		CreatedAt:   time.Now(),
-// 		LastAccess:  time.Now(),
-// 	})
-// 	log.Infof("Created session %s for tenant %s", sessionID, tenantID)
-// 	return sessionID
-// }
+	httpErrCh := make(chan error, 1)
+	go func() {
+		log.Printf("MCP HTTP server listening on %s", *httpAddr)
+		httpErrCh <- httpServer.ListenAndServe()
+	}()
+
+	<-ctx.Done()
+	log.Printf("shutdown signal received; stopping HTTP server...")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
+		log.Printf("HTTP server shutdown error: %v", err)
+	}
+
+	if err := <-httpErrCh; err != nil && err != http.ErrServerClosed {
+		log.Fatalf("Error from HTTP server: %v", err)
+	}
+
+	wg.Wait()
+	log.Printf("shutdown complete")
+}

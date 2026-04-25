@@ -3,115 +3,99 @@ package mcp
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
+	"log/slog"
+	"os"
+	"time"
+
+	"urlshort/cmd/initialize"
+	ob "urlshort/internal/service/outbox"
+	svc "urlshort/internal/service/urlshort"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-func NewMCPServer() *mcp.Server {
-	// TODO : add prompts and resources
-	opts := &mcp.ServerOptions{
-		Instructions: "Use this server for fetching logged in user information in a ncx network via ncx-auth service for a tenant",
-		HasTools:     true,
-		HasPrompts:   false,
-		HasResources: false,
+type YasuMCPHandler struct {
+	svc *svc.YasuService
+}
+
+// typed input structs — SDK auto-infers JSON schema from these
+type ShortenInput struct {
+	URL string `json:"url" jsonschema:"the URL to shorten"`
+}
+
+type ShortenOutput struct {
+	Code     string `json:"code"`
+	ShortURL string `json:"short_url"`
+}
+
+type ResolveInput struct {
+	Code string `json:"code" jsonschema:"the short code to resolve"`
+}
+
+type ResolveOutput struct {
+	OriginalURL string `json:"original_url"`
+}
+
+func loggingMiddleware(next mcp.MethodHandler) mcp.MethodHandler {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
+			// Simplify timestamp format for consistent output.
+			if a.Key == slog.TimeKey {
+				return slog.String("time", "2025-01-01T00:00:00Z")
+			}
+			return a
+		},
+	}))
+
+	return func(
+		ctx context.Context,
+		method string,
+		req mcp.Request,
+	) (mcp.Result, error) {
+		logger.Info("MCP method started",
+			"method", method,
+			"session_id", req.GetSession().ID(),
+			"has_params", req.GetParams() != nil,
+		)
+		// Log more for tool calls.
+		if ctr, ok := req.(*mcp.CallToolRequest); ok {
+			logger.Info("Calling tool",
+				"name", ctr.Params.Name,
+				"args", ctr.Params.Arguments)
+		}
+
+		start := time.Now()
+		result, err := next(ctx, method, req)
+		duration := time.Since(start)
+		if err != nil {
+			logger.Error("MCP method failed",
+				"method", method,
+				"session_id", req.GetSession().ID(),
+				"duration_ms", duration.Milliseconds(),
+				"err", err,
+			)
+		} else {
+			logger.Info("MCP method completed",
+				"method", method,
+				"session_id", req.GetSession().ID(),
+				"duration_ms", duration.Milliseconds(),
+				"has_result", result != nil,
+			)
+			// Log more for tool results.
+			if ctr, ok := result.(*mcp.CallToolResult); ok {
+				logger.Info("tool result",
+					"isError", ctr.IsError,
+					"structuredContent", ctr.StructuredContent)
+			}
+		}
+		return result, err
 	}
-
-	server := mcp.NewServer(&mcp.Implementation{
-		Name:    "ncx-auth",
-		Version: "v0.0.1",
-	}, opts)
-
-	addTools(server)
-	addResources(server)
-	addPrompts(server)
-
-	return server
 }
 
-func addResources(server *mcp.Server) {
-	// IDPs available
-	server.AddResource(&mcp.Resource{
-		URI:         "idps://available",
-		Name:        "Available IDPs",
-		Description: "ZTNA identity providers",
-		MIMEType:    "application/json",
-	}, func(ctx context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
-		idps := []map[string]string{{"name": "ZTNA", "type": "saml", "status": "active"}}
-		data, _ := json.Marshal(idps)
-		return &mcp.ReadResourceResult{
-			Contents: []*mcp.ResourceContents{
-				{
-					URI:      req.Params.URI,
-					MIMEType: "application/json",
-					Text:     string(data),
-				},
-			},
-		}, nil
-	})
-
-	// Dashboard users
-	server.AddResource(&mcp.Resource{
-		URI:         "users://dashboard/{network_id}",
-		Name:        "Dashboard Users",
-		Description: "Users logged in via dashboard",
-		MIMEType:    "application/json",
-	}, func(ctx context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
-		users := []map[string]string{{"user_id": "user123", "email": "user@example.com", "status": "active"}}
-		data, _ := json.Marshal(users)
-		return &mcp.ReadResourceResult{
-			Contents: []*mcp.ResourceContents{
-				{
-					URI:      req.Params.URI,
-					MIMEType: "application/json",
-					Text:     string(data),
-				},
-			},
-		}, nil
-	})
-
-	// PRA policies
-	server.AddResource(&mcp.Resource{
-		URI:         "policies://pra/{tenant_id}/{network_id}",
-		Name:        "PRA Policies",
-		Description: "Policies per tenant/network",
-		MIMEType:    "application/json",
-	}, func(ctx context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
-		policies := []map[string]string{{"policy_id": "pol123", "name": "Default Policy", "type": "access"}}
-		data, _ := json.Marshal(policies)
-		return &mcp.ReadResourceResult{
-			Contents: []*mcp.ResourceContents{
-				{
-					URI:      req.Params.URI,
-					MIMEType: "application/json",
-					Text:     string(data),
-				},
-			},
-		}, nil
-	})
-
-	// User resources
-	server.AddResource(&mcp.Resource{
-		URI:         "resources://pra/{user_id}",
-		Name:        "User Resources",
-		Description: "Resources available to user",
-		MIMEType:    "application/json",
-	}, func(ctx context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
-		resources := []map[string]string{{"resource_id": "res123", "name": "App Server", "type": "application"}}
-		data, _ := json.Marshal(resources)
-		return &mcp.ReadResourceResult{
-			Contents: []*mcp.ResourceContents{
-				{
-					URI:      req.Params.URI,
-					MIMEType: "application/json",
-					Text:     string(data),
-				},
-			},
-		}, nil
-	})
-}
-
-func addTools(server *mcp.Server) {
+func addTools(server *mcp.Server, h *YasuMCPHandler) {
 	pingTool := &mcp.Tool{
 		Name:        "ping",
 		Description: "Ping the server",
@@ -125,47 +109,143 @@ func addTools(server *mcp.Server) {
 			},
 		},
 	}
-	server.AddTool(pingTool, pingingToolHandler)
+	server.AddTool(pingTool, h.pingingToolHandler)
 
-}
-
-func addPrompts(server *mcp.Server) {
-	server.AddPrompt(&mcp.Prompt{
-		Name:        "auth_help",
-		Description: "Get help with authentication flows",
-		Arguments: []*mcp.PromptArgument{
-			{Name: "flow_type", Description: "Type of auth flow (oauth2, saml)", Required: false},
-		},
-	}, func(ctx context.Context, req *mcp.GetPromptRequest) (*mcp.GetPromptResult, error) {
-		flowType := "general"
-
-		var content string
-		switch flowType {
-		case "oauth2":
-			content = "OAuth2 flow: /oauth2/authorize -> /oauth2/tokens"
-		case "saml":
-			content = "SAML flow: IDP -> ACS endpoint"
-		default:
-			content = "NCX Auth supports OAuth2 and SAML flows"
-		}
-
-		return &mcp.GetPromptResult{
-			Description: "Authentication guidance",
-			Messages: []*mcp.PromptMessage{
-				{
-					Role:    "user",
-					Content: &mcp.TextContent{Text: content},
+	// Tool 1 — shorten a URL
+	shortenTool := &mcp.Tool{
+		Name:        "shorten_url",
+		Description: "Shortens a long URL and returns a short code",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"url": map[string]interface{}{
+					"type":        "string",
+					"description": "The long URL to shorten",
 				},
 			},
-		}, nil
-	})
+			"required": []string{"url"},
+		},
+	}
+	server.AddTool(shortenTool, h.shortenHandler)
+
+	// Tool 2 — resolve a short code
+	resolveTool := &mcp.Tool{
+		Name:        "resolve_url",
+		Description: "Resolves a short code back to the original URL",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"code": map[string]interface{}{
+					"type":        "string",
+					"description": "The short code to resolve",
+				},
+			},
+			"required": []string{"code"},
+		},
+	}
+
+	server.AddTool(resolveTool, h.resolveHandler)
+
 }
 
-func pingingToolHandler(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (h *YasuMCPHandler) pingingToolHandler(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	log.Printf("Got ping request: %v", req.Params)
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: "pong", Meta: map[string]any{"ping": "pong"}},
 		},
 	}, nil
+}
+
+func (h *YasuMCPHandler) shortenHandler(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	log.Printf("Got shorten request: %v", req.Params)
+
+	var input ShortenInput
+	if err := json.Unmarshal(req.Params.Arguments, &input); err != nil {
+		return nil, fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	if input.URL == "" {
+		return nil, fmt.Errorf("url is required")
+	}
+
+	// Here you would add your URL shortening logic, e.g. generate a code and store the mapping
+	code := "abc123" // Placeholder code
+
+	code, err := h.svc.Shorten(ctx, svc.ShortenRequest{
+		URL:       input.URL,
+		ExpiresAt: time.Now().UTC().Add(7 * 24 * time.Hour),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: fmt.Sprintf("shortened URL with code: %s", code)},
+		},
+		StructuredContent: ShortenOutput{
+			Code:     code,
+			ShortURL: "http://localhost:8000/" + code,
+		},
+	}, nil
+}
+
+func (h *YasuMCPHandler) resolveHandler(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	log.Printf("Got resolve request: %v", req.Params)
+
+	var input ResolveInput
+	if err := json.Unmarshal(req.Params.Arguments, &input); err != nil {
+		return nil, fmt.Errorf("invalid arguments: %w", err)
+	}
+
+	if input.Code == "" {
+		return nil, fmt.Errorf("code is required")
+	}
+
+	// Here you would add your URL resolving logic, e.g. look up the code and return the original URL
+	originalURL := "http://example.com/very/long/url" // Placeholder URL
+
+	originalURL, err := h.svc.Get(ctx, input.Code, nil) // TODO: pass actual code and headers
+	if err != nil {
+		return nil, err
+	}
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: fmt.Sprintf("original URL is: %s", originalURL)},
+		},
+		StructuredContent: ResolveOutput{
+			OriginalURL: originalURL,
+		},
+	}, nil
+}
+
+func NewMCPServer(clients *initialize.Clients) (*mcp.Server, *ob.Worker, *ob.Drainer) {
+
+	worker := ob.NewWorker(clients.PgClient)
+	drainer := ob.NewDrainer(clients.PgClient, clients.ChClient)
+
+	h := &YasuMCPHandler{svc: svc.NewYasuService(clients.PgClient, clients.Cache, worker)}
+
+	// TODO : add prompts and resources
+	opts := &mcp.ServerOptions{
+		Instructions: "This is the MCP server for Yasu, a URL shortening service. It provides tools to shorten URLs and resolve short codes back to original URLs.",
+		HasTools:     true,
+		HasPrompts:   false,
+		HasResources: false,
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{
+		Name:    "yasen-mcp",
+		Version: "v0.0.1",
+	}, opts)
+
+	server.AddReceivingMiddleware(loggingMiddleware)
+
+	addTools(server, h)
+	// addResources(server)
+	// addPrompts(server)
+
+	return server, worker, drainer
 }
