@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 	"urlshort/cmd/initialize"
-	"urlshort/internal/http/handler"
+	"urlshort/internal/api/handler"
 	"urlshort/internal/service/outbox"
 	urlshortsvc "urlshort/internal/service/urlshort"
 
@@ -57,7 +57,7 @@ func RegisterHealthRoute(router *mux.Router) {
 
 func RegisterYasuRoutes(router *mux.Router, clients *initialize.Clients, worker *outbox.Worker) {
 	// Initialize the YasuHandler with the YasuService, postgress client , buffer client, and any other dependencies it may require
-	yasuHandler := &handler.YasuHandler{Service: urlshortsvc.NewYasuService(clients.PgClient, clients.Cache, worker)}
+	yasuHandler := &handler.YasuHandler{Service: urlshortsvc.NewYasuService(clients.PgClient, clients.Cache, worker, "urlshort/internal/utils/geoDB")}
 
 	router.HandleFunc("/{code}", yasuHandler.Get).Methods("GET")
 	router.HandleFunc("/shorten", yasuHandler.Create).Methods("POST")

@@ -199,7 +199,7 @@ func (h *YasuMCPHandler) resolveHandler(ctx context.Context, req *mcp.CallToolRe
 	// Here you would add your URL resolving logic, e.g. look up the code and return the original URL
 	originalURL := ""
 
-	originalURL, err := h.svc.Get(ctx, input.Code, nil) // TODO: pass actual code and headers
+	originalURL, err := h.svc.Get(ctx, input.Code, nil, ob.SourceMCP) // TODO: pass actual code and headers
 	if err != nil {
 		return nil, err
 	}
@@ -219,8 +219,7 @@ func NewMCPServer(clients *initialize.Clients) (*mcp.Server, *ob.Worker, *ob.Dra
 	worker := ob.NewWorker(clients.PgClient)
 	drainer := ob.NewDrainer(clients.PgClient, clients.ChClient)
 
-	h := &YasuMCPHandler{svc: svc.NewYasuService(clients.PgClient, clients.Cache, worker)}
-
+	h := &YasuMCPHandler{svc: svc.NewYasuService(clients.PgClient, clients.Cache, worker, "urlshort/internal/utils/geoDB")}
 	// TODO : add prompts and resources
 	opts := &mcp.ServerOptions{
 		Instructions: "This is the MCP server for Yasu, a URL shortening service. It provides tools to shorten URLs and resolve short codes back to original URLs.",

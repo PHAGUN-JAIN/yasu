@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	ob "urlshort/internal/service/outbox"
 	urlshortsvc "urlshort/internal/service/urlshort"
 	"urlshort/internal/utils/serde"
 
@@ -34,7 +35,7 @@ func (h *YasuHandler) Get(w http.ResponseWriter, r *http.Request) {
 	code := vars["code"]
 	log.Printf("extracted code: '%s'", code)
 
-	originalURL, err := h.Service.Get(r.Context(), code, r.Header)
+	originalURL, err := h.Service.Get(r.Context(), code, r.Header, ob.SourceREST)
 	if errors.Is(err, urlshortsvc.ErrNotFound) {
 		http.Error(w, urlshortsvc.ErrNotFound.Error(), http.StatusNotFound)
 		return
@@ -87,4 +88,3 @@ func (h *YasuHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	result := h.Service.Delete()
 	w.Write([]byte(result))
 }
-

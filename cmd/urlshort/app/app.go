@@ -2,7 +2,7 @@ package app
 
 import (
 	"log"
-	router "urlshort/internal/http"
+	router "urlshort/internal/api"
 	"urlshort/internal/repository"
 )
 
