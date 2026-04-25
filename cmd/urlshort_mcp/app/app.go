@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+	"time"
 	"urlshort/cmd/initialize"
 	urlshortmcp "urlshort/internal/mcp"
 
@@ -54,18 +55,22 @@ func RunApplication() {
 		Handler: handler,
 	}
 
+	httpErrCh := make(chan error, 1)
 	go func() {
-		<-ctx.Done()
-		log.Printf("shutdown signal received; stopping HTTP server...")
-		if err := httpServer.Shutdown(context.Background()); err != nil {
-			log.Printf("HTTP server shutdown error: %v", err)
-		}
+		log.Printf("%s", "MCP HTTP server listening on "+*httpAddr)
+		httpErrCh <- httpServer.ListenAndServe()
 	}()
 
-	log.Printf("%s", "MCP HTTP server listening on "+*httpAddr)
+	<-ctx.Done()
+	log.Printf("shutdown signal received; stopping HTTP server...")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	if err := httpServer.Shutdown(shutdownCtx); err != nil {
+		log.Printf("HTTP server shutdown error: %v", err)
+	}
 
-	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("Error starting HTTP server: %v", err)
+	if err := <-httpErrCh; err != nil && err != http.ErrServerClosed {
+		log.Fatalf("Error from HTTP server: %v", err)
 	}
 
 	wg.Wait()
