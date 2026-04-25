@@ -5,6 +5,10 @@ import (
 	"flag"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 	"urlshort/cmd/initialize"
 	urlshortmcp "urlshort/internal/mcp"
 
@@ -31,12 +35,39 @@ func RunApplication() {
 		nil,
 	)
 
-	go worker.Start(context.Background())
-	go drainer.Start(context.Background())
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		worker.Start(ctx)
+	}()
+	go func() {
+		defer wg.Done()
+		drainer.Start(ctx)
+	}()
+
+	httpServer := &http.Server{
+		Addr:    *httpAddr,
+		Handler: handler,
+	}
+
+	go func() {
+		<-ctx.Done()
+		log.Printf("shutdown signal received; stopping HTTP server...")
+		if err := httpServer.Shutdown(context.Background()); err != nil {
+			log.Printf("HTTP server shutdown error: %v", err)
+		}
+	}()
 
 	log.Printf("%s", "MCP HTTP server listening on "+*httpAddr)
 
-	if err := http.ListenAndServe(*httpAddr, handler); err != nil {
+	if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("Error starting HTTP server: %v", err)
 	}
+
+	wg.Wait()
+	log.Printf("shutdown complete")
 }
