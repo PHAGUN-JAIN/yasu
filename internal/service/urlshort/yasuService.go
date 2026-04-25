@@ -88,14 +88,14 @@ func (s *YasuService) trackClick(code string, header http.Header) {
 	var referer string
 	var device string
 	if header != nil {
-		referer := header.Get("Referer")
-		if referer == "" {
-			referer = "direct"
-		}
+		referer = header.Get("Referer")
 		device = header.Get("User-Agent")
-		if device == "" {
-			device = "unknown"
-		}
+	}
+	if referer == "" {
+		referer = "direct"
+	}
+	if device == "" {
+		device = "unknown"
 	}
 
 	s.worker.Enqueue(outbox.ClickEvent{

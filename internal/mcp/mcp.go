@@ -41,13 +41,6 @@ type ResolveOutput struct {
 func loggingMiddleware(next mcp.MethodHandler) mcp.MethodHandler {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
-		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
-			// Simplify timestamp format for consistent output.
-			if a.Key == slog.TimeKey {
-				return slog.String("time", "2025-01-01T00:00:00Z")
-			}
-			return a
-		},
 	}))
 
 	return func(
@@ -170,7 +163,7 @@ func (h *YasuMCPHandler) shortenHandler(ctx context.Context, req *mcp.CallToolRe
 	}
 
 	// Here you would add your URL shortening logic, e.g. generate a code and store the mapping
-	code := "abc123" // Placeholder code
+	code := ""
 
 	code, err := h.svc.Shorten(ctx, svc.ShortenRequest{
 		URL:       input.URL,
@@ -204,7 +197,7 @@ func (h *YasuMCPHandler) resolveHandler(ctx context.Context, req *mcp.CallToolRe
 	}
 
 	// Here you would add your URL resolving logic, e.g. look up the code and return the original URL
-	originalURL := "http://example.com/very/long/url" // Placeholder URL
+	originalURL := ""
 
 	originalURL, err := h.svc.Get(ctx, input.Code, nil) // TODO: pass actual code and headers
 	if err != nil {

@@ -90,64 +90,42 @@ func (w *Worker) flush(ctx context.Context, batch []ClickEvent) {
 		return
 	}
 
-	if err := bulkInsert(w.pg, batch); err != nil {
+	if err := bulkInsert(ctx, w.pg, batch); err != nil {
 		log.Printf("worker: ERROR: failed to flush %d events to Postgres: %v", len(batch), err)
 		return
 	}
 	log.Printf("worker: flushed %d events to Postgres", len(batch))
 }
 
-func bulkInsert_(db *sql.DB, click_events []ClickEvent) error {
+func bulkInsert(ctx context.Context, db *sql.DB, events []ClickEvent) error {
+	if len(events) == 0 {
+		return nil
+	}
 
-	tx, err := db.Begin()
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	// Ensure rollback if any step fails
 	defer tx.Rollback()
 
-	// Prepare the statement once
-	// PostgreSQL uses $1, $2, $3 placeholders, not ?
-	stmt, err := tx.Prepare("INSERT INTO click_events(code, device, referer, clicked_at) VALUES($1, $2, $3, $4)")
-	if err != nil {
-		return err
-	}
-	defer stmt.Close()
-
-	// Execute the prepared statement for each event
-	for _, u := range click_events {
-		log.Printf("worker: Inserting click event: code=%s, device=%s, referer=%s, clicked_at=%s", u.Code, u.Device, u.Referer, u.ClickedAt)
-		if _, err := stmt.Exec(u.Code, u.Device, u.Referer, u.ClickedAt); err != nil {
-			return err
-		}
-	}
-
-	return tx.Commit()
-}
-
-func bulkInsert(db *sql.DB, events []ClickEvent) error {
-	if len(events) == 0 {
-		return nil
-	}
-
-	// build: INSERT INTO click_events(code, device, referer, ip, clicked_at)
-	// VALUES ($1,$2,$3,$4,$5), ($6,$7,$8,$9,$10), ...
+	// build: INSERT INTO click_events(code, device, referer, clicked_at)
+	// VALUES ($1,$2,$3,$4), ($5,$6,$7,$8), ...
 	var query strings.Builder
-	query.WriteString("INSERT INTO click_events(code, device, referer, ip, clicked_at) VALUES ")
-	args := make([]any, 0, len(events)*5)
+	query.WriteString("INSERT INTO click_events(code, device, referer, clicked_at) VALUES ")
+	args := make([]any, 0, len(events)*4)
 
 	for i, e := range events {
 		if i > 0 {
 			query.WriteString(",")
 		}
-		base := i * 5
-		fmt.Fprintf(&query, "($%d,$%d,$%d,$%d,$%d)", base+1, base+2, base+3, base+4, base+5)
-		args = append(args, e.Code, e.Device, e.Referer, e.IP, e.ClickedAt)
+		base := i * 4
+		fmt.Fprintf(&query, "($%d,$%d,$%d,$%d)", base+1, base+2, base+3, base+4)
+		args = append(args, e.Code, e.Device, e.Referer, e.ClickedAt)
 	}
 
-	_, err := db.Exec(query.String(), args...)
-	if err != nil {
+	if _, err := tx.ExecContext(ctx, query.String(), args...); err != nil {
 		return err
 	}
-	return err
+	return tx.Commit()
 }
