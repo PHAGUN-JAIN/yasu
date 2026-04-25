@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"time"
 	"urlshort/internal/service/outbox"
+	"urlshort/internal/utils"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -19,6 +20,7 @@ type YasuService struct {
 	PgConn *sql.DB
 	Cache  *redis.Client
 	worker *outbox.Worker
+	geo    *utils.Resolver
 }
 
 type ShortenRequest struct {
@@ -27,11 +29,11 @@ type ShortenRequest struct {
 	URL        string    `json:"url"`
 }
 
-func (s *YasuService) Get(ctx context.Context, code string, header http.Header) (string, error) {
+func (s *YasuService) Get(ctx context.Context, code string, header http.Header, source string) (string, error) {
 	// 1. Redis Cache Lookup
 	cached, err := s.Cache.Get(ctx, "url:"+code).Result()
 	if err == nil {
-		s.trackClick(code, header)
+		s.trackClick(code, header, source)
 		return cached, nil
 	}
 
@@ -77,13 +79,18 @@ func (s *YasuService) Get(ctx context.Context, code string, header http.Header) 
 	}
 
 	// 5. Track Analytics
-	s.trackClick(code, header)
+	s.trackClick(code, header, source)
 
 	return originalURL, nil
 }
 
 // Helper to keep the main logic clean
-func (s *YasuService) trackClick(code string, header http.Header) {
+func (s *YasuService) trackClick(code string, header http.Header, source string) {
+
+	ip := utils.RealIP(header)
+	country := s.geo.CountryCode(ip)
+	city := s.geo.City(ip)
+	asn := s.geo.ASN(ip)
 
 	var referer string
 	var device string
@@ -102,6 +109,11 @@ func (s *YasuService) trackClick(code string, header http.Header) {
 		Code:      code,
 		Referer:   referer,
 		Device:    device,
+		Source:    source,
+		IP:        ip,
+		Country:   country,
+		City:      city,
+		ASN:       asn,
 		ClickedAt: time.Now().UTC(),
 	})
 }
@@ -118,7 +130,7 @@ func (s *YasuService) Shorten(ctx context.Context, req ShortenRequest) (string, 
 	var code string
 	var err error
 	//Generate + retry (handle collision)
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		code, err = generateCode()
 		if err != nil {
 			log.Printf("Code generation error: %v", err)
@@ -186,10 +198,11 @@ func generateCode() (string, error) {
 	return string(bytes), nil
 }
 
-func NewYasuService(pg *sql.DB, cache *redis.Client, worker *outbox.Worker) *YasuService {
+func NewYasuService(pg *sql.DB, cache *redis.Client, worker *outbox.Worker, geoDbPath string) *YasuService {
 	return &YasuService{
 		PgConn: pg,
 		Cache:  cache,
 		worker: worker,
+		geo:    utils.NewResolver(geoDbPath),
 	}
 }

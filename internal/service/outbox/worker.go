@@ -17,6 +17,9 @@ type ClickEvent struct {
 	Device    string
 	Referer   string
 	IP        string
+	Source    string // "rest" | "mcp" | "a2a"
+	City      string // from City()
+	ASN       string // from ASN() — useful to know if traffic is from cloud/bots
 	ClickedAt time.Time
 }
 
@@ -112,16 +115,16 @@ func bulkInsert(ctx context.Context, db *sql.DB, events []ClickEvent) error {
 	// build: INSERT INTO click_events(code, device, referer, clicked_at)
 	// VALUES ($1,$2,$3,$4), ($5,$6,$7,$8), ...
 	var query strings.Builder
-	query.WriteString("INSERT INTO click_events(code, device, referer, clicked_at) VALUES ")
-	args := make([]any, 0, len(events)*4)
+	query.WriteString("INSERT INTO click_events(code, device, referer, country, city, asn, source, clicked_at) VALUES ")
+	args := make([]any, 0, len(events)*8)
 
 	for i, e := range events {
 		if i > 0 {
 			query.WriteString(",")
 		}
-		base := i * 4
-		fmt.Fprintf(&query, "($%d,$%d,$%d,$%d)", base+1, base+2, base+3, base+4)
-		args = append(args, e.Code, e.Device, e.Referer, e.ClickedAt)
+		base := i * 8
+		fmt.Fprintf(&query, "($%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d)", base+1, base+2, base+3, base+4, base+5, base+6, base+7, base+8)
+		args = append(args, e.Code, e.Device, e.Referer, e.Country, e.City, e.ASN, e.Source, e.ClickedAt)
 	}
 
 	if _, err := tx.ExecContext(ctx, query.String(), args...); err != nil {
