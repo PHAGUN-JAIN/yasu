@@ -57,7 +57,7 @@ func RunApplication() {
 
 	httpErrCh := make(chan error, 1)
 	go func() {
-		log.Printf("%s", "MCP HTTP server listening on "+*httpAddr)
+		log.Printf("MCP HTTP server listening on %s", *httpAddr)
 		httpErrCh <- httpServer.ListenAndServe()
 	}()
 
