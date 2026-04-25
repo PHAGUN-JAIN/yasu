@@ -102,15 +102,15 @@ func bulkInsert(ctx context.Context, db *sql.DB, events []ClickEvent) error {
 		return nil
 	}
 
-	tx, err := db.Begin()
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	// Ensure rollback if any step fails
 	defer tx.Rollback()
 
-	// build: INSERT INTO click_events(code, device, referer, ip, clicked_at)
-	// VALUES ($1,$2,$3,$4,$5), ($6,$7,$8,$9,$10), ...
+	// build: INSERT INTO click_events(code, device, referer, clicked_at)
+	// VALUES ($1,$2,$3,$4), ($5,$6,$7,$8), ...
 	var query strings.Builder
 	query.WriteString("INSERT INTO click_events(code, device, referer, clicked_at) VALUES ")
 	args := make([]any, 0, len(events)*4)
@@ -124,7 +124,8 @@ func bulkInsert(ctx context.Context, db *sql.DB, events []ClickEvent) error {
 		args = append(args, e.Code, e.Device, e.Referer, e.ClickedAt)
 	}
 
-	db.ExecContext(ctx, query.String(), args...)
-
-	return err
+	if _, err := tx.ExecContext(ctx, query.String(), args...); err != nil {
+		return err
+	}
+	return tx.Commit()
 }
