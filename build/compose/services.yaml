@@ -51,6 +51,10 @@ services:
       - yasu-network
 
   yasu:
+    volumes:
+        - ../../internal/utils/geoDB:/app/geoDB   # mount mmdb files
+    environment:
+        GEOIP_PATH: /app/geoDB
     extends:
       file: ../images/build.yaml
       service: yasu
@@ -65,6 +69,10 @@ services:
         condition: service_healthy
         
   yasu_mcp:
+    volumes:
+      - ../../internal/utils/geoDB:/app/geoDB   # mount mmdb files
+    environment:
+        GEOIP_PATH: /app/geoDB
     extends:
       file: ../images/build.yaml
       service: yasu_mcp

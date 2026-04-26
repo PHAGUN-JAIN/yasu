@@ -8,6 +8,33 @@ DOCKER_DEV_COMPOSE_FILE=build/compose/services-dev.yaml
 
 SERVICE_NAME=yasu
 
+# Run linter
+.PHONY: lint  # show all issues
+lint:
+	golangci-lint run ./...
+
+# Run linter and auto-fix what it can
+.PHONY: lint-fix # auto fix what's possible
+lint-fix:
+	golangci-lint run --fix ./...
+
+# Check formatting only
+.PHONY: fmt  # show unformatted files
+fmt:
+	gofmt -l .
+
+# Auto format all files
+.PHONY: fmt-fix  # format everything
+fmt-fix:
+	gofmt -w .
+
+
+# Setup git hooks — run once after cloning
+.PHONY: setup
+setup:
+	git config core.hooksPath .githooks
+	@echo "Git hooks configured"
+
 # Default target
 .PHONY: build
 build:

@@ -14,6 +14,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
+type contextKey string
+
+const RequestIDKey contextKey = "request_id"
+
 func RunYasuServer(port string) error {
 	clients := initialize.GetClients()
 
@@ -50,14 +54,16 @@ func RunYasuServer(port string) error {
 func RegisterHealthRoute(router *mux.Router) {
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		if _, err := w.Write([]byte("OK")); err != nil {
+			log.Printf("failed to write response: %v", err)
+		}
 	},
 	).Methods("GET")
 }
 
 func RegisterYasuRoutes(router *mux.Router, clients *initialize.Clients, worker *outbox.Worker) {
 	// Initialize the YasuHandler with the YasuService, postgress client , buffer client, and any other dependencies it may require
-	yasuHandler := &handler.YasuHandler{Service: urlshortsvc.NewYasuService(clients.PgClient, clients.Cache, worker, "urlshort/internal/utils/geoDB")}
+	yasuHandler := &handler.YasuHandler{Service: urlshortsvc.NewYasuService(clients.PgClient, clients.Cache, worker)}
 
 	router.HandleFunc("/{code}", yasuHandler.Get).Methods("GET")
 	router.HandleFunc("/shorten", yasuHandler.Create).Methods("POST")
@@ -77,7 +83,7 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 
 		start := time.Now()
 
-		reqID, _ := r.Context().Value("request_id").(string)
+		reqID, _ := r.Context().Value(RequestIDKey).(string)
 
 		log.Printf("[%s] Started %s %s",
 			reqID, r.Method, r.URL.Path,
@@ -95,16 +101,13 @@ func RequestIDMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		requestID := r.Header.Get("X-Request-ID")
-
 		if requestID == "" {
 			requestID = uuid.NewString()
 		}
 
 		// attach to context
-		ctx := context.WithValue(r.Context(), "request_id", requestID)
-
+		ctx := context.WithValue(r.Context(), RequestIDKey, requestID)
 		w.Header().Set("X-Request-ID", requestID)
-
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

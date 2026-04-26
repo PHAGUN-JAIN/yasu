@@ -219,7 +219,7 @@ func NewMCPServer(clients *initialize.Clients) (*mcp.Server, *ob.Worker, *ob.Dra
 	worker := ob.NewWorker(clients.PgClient)
 	drainer := ob.NewDrainer(clients.PgClient, clients.ChClient)
 
-	h := &YasuMCPHandler{svc: svc.NewYasuService(clients.PgClient, clients.Cache, worker, "urlshort/internal/utils/geoDB")}
+	h := &YasuMCPHandler{svc: svc.NewYasuService(clients.PgClient, clients.Cache, worker)}
 	// TODO : add prompts and resources
 	opts := &mcp.ServerOptions{
 		Instructions: "This is the MCP server for Yasu, a URL shortening service. It provides tools to shorten URLs and resolve short codes back to original URLs.",

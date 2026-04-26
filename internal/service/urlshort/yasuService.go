@@ -198,11 +198,11 @@ func generateCode() (string, error) {
 	return string(bytes), nil
 }
 
-func NewYasuService(pg *sql.DB, cache *redis.Client, worker *outbox.Worker, geoDbPath string) *YasuService {
+func NewYasuService(pg *sql.DB, cache *redis.Client, worker *outbox.Worker) *YasuService {
 	return &YasuService{
 		PgConn: pg,
 		Cache:  cache,
 		worker: worker,
-		geo:    utils.NewResolver(geoDbPath),
+		geo:    utils.NewResolver(),
 	}
 }

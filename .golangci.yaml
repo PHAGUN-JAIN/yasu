@@ -1,0 +1,23 @@
+# .golangci.yml
+linters:
+  enable:
+    - gofmt
+    - govet
+    - errcheck      # catches unchecked errors
+    - ineffassign   # catches unused assignments
+    - unused        # catches unused code
+    - gosimple      # suggests simpler code
+
+linters-settings:
+  errcheck:
+    ignore: "fmt:.*,io/fs:PathError"  # ignore fmt.Print* errors
+    exclude-functions:    # ← not ignore
+      - fmt.Print
+      - fmt.Println
+      - fmt.Printf
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck   # relax errcheck in test files

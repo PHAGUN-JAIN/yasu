@@ -110,7 +110,11 @@ func bulkInsert(ctx context.Context, db *sql.DB, events []ClickEvent) error {
 		return err
 	}
 	// Ensure rollback if any step fails
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
+			log.Printf("rollback error: %v", err)
+		}
+	}()
 
 	// build: INSERT INTO click_events(code, device, referer, clicked_at)
 	// VALUES ($1,$2,$3,$4), ($5,$6,$7,$8), ...

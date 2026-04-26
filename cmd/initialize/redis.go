@@ -12,5 +12,4 @@ func GetRedisClient() *redis.Client {
 	})
 
 	return rdb
-}			
-
+}
