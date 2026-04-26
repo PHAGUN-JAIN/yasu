@@ -36,7 +36,7 @@ func NewWorker(pg *sql.DB) *Worker {
 		eventChan:  make(chan ClickEvent, 1000), // buffered — redirects never block
 		pg:         pg,
 		batchSize:  1000,
-		flushEvery: 30 * time.Second,
+		flushEvery: defaultFlushEvery * time.Second,
 	}
 }
 

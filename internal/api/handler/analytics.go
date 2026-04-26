@@ -31,6 +31,7 @@ func (h *AnalyticsHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err != nil {
+		log.Printf("analytics service error for code %s: %v", code, err)
 		http.Error(w, urlshortsvc.ErrInternal.Error(), http.StatusInternalServerError)
 		return
 	}

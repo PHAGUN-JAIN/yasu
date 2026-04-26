@@ -71,9 +71,7 @@ func RegisterYasuRoutes(router *mux.Router, clients *initialize.Clients, worker 
 }
 
 func RegisterAnalyticsRoutes(router *mux.Router, clients *initialize.Clients) {
-	analyticsHandler := &handler.AnalyticsHandler{Service: &urlshortsvc.AnalyticsService{
-		ChConn: clients.ChClient,
-	}}
+	analyticsHandler := &handler.AnalyticsHandler{Service: urlshortsvc.NewAnalyticsService(clients.ChClient)}
 
 	router.HandleFunc("/analytics/{code}", analyticsHandler.Get).Methods("GET")
 }

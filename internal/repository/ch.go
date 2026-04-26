@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"time"
 	"urlshort/migrations"
 
 	"github.com/ClickHouse/clickhouse-go/v2"
@@ -86,10 +87,6 @@ func RunClickHouseMigrations() error {
 // CHStore handles analytics writes and reads
 // Use: github.com/ClickHouse/clickhouse-go/v2
 
-type CHStore struct {
-	// TODO: hold clickhouse.Conn
-}
-
 // TODO: implement BatchInsert(ctx, []ClickEvent) error
 // Key learning: use clickhouse.PrepareBatch for efficient bulk inserts
 // Read the clickhouse-go docs on batch inserts - it's different from pgx
@@ -99,5 +96,15 @@ type CHStore struct {
 // SELECT count(), uniq(ip), any(country) ... GROUP BY toDate(clicked_at)
 
 type Stats struct {
-	// TODO: TotalClicks, ByCountry map[string]int, ByDevice map[string]int, ByDay []DayStat
+	Code        string            `json:"code"`
+	TotalClicks uint64            `json:"total_clicks"`
+	ByCountry   map[string]uint64 `json:"by_country"`
+	ByDevice    map[string]uint64 `json:"by_device"`
+	BySource    map[string]uint64 `json:"by_source"`
+	ByDay       []DayStat         `json:"by_day"`
+}
+
+type DayStat struct {
+	Date   time.Time `json:"date"`
+	Clicks uint64    `json:"clicks"`
 }
