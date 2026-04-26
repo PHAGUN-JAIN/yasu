@@ -1,9 +1,9 @@
 package outbox
 
-const (	
-	defaultBatchSize = 1000
-	defaultFlushEvery = 30 
-	defaultPollEvery = 30 
+const (
+	defaultBatchSize  = 1000
+	defaultFlushEvery = 30
+	defaultPollEvery  = 30
 )
 
 const (
