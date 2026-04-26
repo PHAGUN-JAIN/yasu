@@ -57,7 +57,7 @@ func (d *Drainer) drain(ctx context.Context) {
 	}()
 
 	rows, err := tx.Query(`
-		SELECT id, code, country, city, asn, device, referer, source, clicked_at
+		SELECT id, code, ip, country, city, asn, device, referer, source, clicked_at
 		FROM click_events
 		WHERE processed = false
 		ORDER BY id
@@ -77,6 +77,7 @@ func (d *Drainer) drain(ctx context.Context) {
 		if err := rows.Scan(
 			&event.ID,
 			&event.Code,
+			&event.IP,
 			&event.Country,
 			&event.City,
 			&event.ASN,

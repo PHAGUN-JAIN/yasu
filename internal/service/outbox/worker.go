@@ -119,7 +119,7 @@ func bulkInsert(ctx context.Context, db *sql.DB, events []ClickEvent) error {
 	// build: INSERT INTO click_events(code, device, referer, clicked_at)
 	// VALUES ($1,$2,$3,$4), ($5,$6,$7,$8), ...
 	var query strings.Builder
-	query.WriteString("INSERT INTO click_events(code,ip, device, referer, country, city, asn, source, clicked_at) VALUES ")
+	query.WriteString("INSERT INTO click_events(code, ip, device, referer, country, city, asn, source, clicked_at) VALUES ")
 	args := make([]any, 0, len(events)*9)
 
 	for i, e := range events {
