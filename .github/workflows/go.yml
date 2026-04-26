@@ -18,10 +18,10 @@ jobs:
     name: Lint & Format
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -34,9 +34,10 @@ jobs:
           fi
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v5
+        uses: golangci/golangci-lint-action@v6
         with:
           version: latest
+          install-mode: goget 
           args: --out-format=colored-line-number  # ← not github-actions
 
   # ──────────────────────────────────────────
@@ -48,10 +49,10 @@ jobs:
     needs: lint   # only run if lint passes
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true   # cache go modules
@@ -105,13 +106,13 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
 
       - name: Download GeoIP databases
         run: make geoip MAXMIND_KEY=${{ secrets.MAXMIND_KEY }}
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v5
+        uses: docker/login-action@v6
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -119,7 +120,7 @@ jobs:
 
       - name: Extract image metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
@@ -127,7 +128,7 @@ jobs:
             type=raw,value=latest
 
       - name: Build and push image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true

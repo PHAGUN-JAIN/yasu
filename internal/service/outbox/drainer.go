@@ -121,7 +121,7 @@ func (d *Drainer) drain(ctx context.Context) {
 
 func ingestClickHouse(ctx context.Context, ch driver.Conn, b []ClickEvent) error {
 	batch, err := ch.PrepareBatch(ctx,
-		"INSERT INTO clicks (short_code, country, city, asn, device, referer, source, clicked_at)",
+		"INSERT INTO clicks (short_code, ip, country, city, asn, device, referer, source, clicked_at)",
 	)
 	if err != nil {
 		return fmt.Errorf("clickhouse: prepare batch: %w", err)
@@ -130,6 +130,7 @@ func ingestClickHouse(ctx context.Context, ch driver.Conn, b []ClickEvent) error
 	for _, event := range b {
 		if err := batch.Append(
 			event.Code,
+			event.IP,
 			event.Country,
 			event.City,
 			event.ASN,
