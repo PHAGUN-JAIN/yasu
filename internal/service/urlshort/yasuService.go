@@ -105,6 +105,10 @@ func (s *YasuService) trackClick(code string, header http.Header, source string)
 		device = "unknown"
 	}
 
+	if ip == "" {
+		ip = "0.0.0.0"
+	}
+
 	s.worker.Enqueue(outbox.ClickEvent{
 		Code:      code,
 		Referer:   referer,

@@ -22,7 +22,7 @@ func NewDrainer(pg *sql.DB, ch driver.Conn) *Drainer {
 	return &Drainer{
 		pg:        pg,
 		ch:        ch,
-		pollEvery: 30 * time.Second,
+		pollEvery: defaultPollEvery * time.Second,
 	}
 }
 

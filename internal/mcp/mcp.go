@@ -17,7 +17,8 @@ import (
 )
 
 type YasuMCPHandler struct {
-	svc *svc.YasuService
+	svc   *svc.YasuService
+	stats *svc.AnalyticsService
 }
 
 // typed input structs — SDK auto-infers JSON schema from these
@@ -136,8 +137,48 @@ func addTools(server *mcp.Server, h *YasuMCPHandler) {
 			"required": []string{"code"},
 		},
 	}
-
 	server.AddTool(resolveTool, h.resolveHandler)
+
+	analyticsTool := &mcp.Tool{
+		Name:        "get_analytics",
+		Description: "Gets analytics data for a given short code",
+		InputSchema: map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"code": map[string]interface{}{
+					"type":        "string",
+					"description": "The short code to get analytics for",
+				},
+			},
+			"required": []string{"code"},
+		},
+	}
+	server.AddTool(analyticsTool, func(ctx context.Context, req *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		log.Printf("Got analytics request: %v", req.Params)
+
+		var input struct {
+			Code string `json:"code"`
+		}
+		if err := json.Unmarshal(req.Params.Arguments, &input); err != nil {
+			return nil, fmt.Errorf("invalid arguments: %w", err)
+		}
+
+		if input.Code == "" {
+			return nil, fmt.Errorf("code is required")
+		}
+
+		analyticsData, err := h.stats.Get(ctx, input.Code)
+		if err != nil {
+			return nil, err
+		}
+
+		return &mcp.CallToolResult{
+			Content: []mcp.Content{
+				&mcp.TextContent{Text: fmt.Sprintf("analytics for code %s: %v", input.Code, analyticsData)},
+			},
+			StructuredContent: analyticsData,
+		}, nil
+	})
 
 }
 
@@ -219,7 +260,10 @@ func NewMCPServer(clients *initialize.Clients) (*mcp.Server, *ob.Worker, *ob.Dra
 	worker := ob.NewWorker(clients.PgClient)
 	drainer := ob.NewDrainer(clients.PgClient, clients.ChClient)
 
-	h := &YasuMCPHandler{svc: svc.NewYasuService(clients.PgClient, clients.Cache, worker)}
+	h := &YasuMCPHandler{
+		svc:   svc.NewYasuService(clients.PgClient, clients.Cache, worker),
+		stats: svc.NewAnalyticsService(clients.ChClient),
+	}
 	// TODO : add prompts and resources
 	opts := &mcp.ServerOptions{
 		Instructions: "This is the MCP server for Yasu, a URL shortening service. It provides tools to shorten URLs and resolve short codes back to original URLs.",
