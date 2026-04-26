@@ -37,7 +37,7 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: latest
-          install-mode: goget 
+          install-mode: goinstall 
           args: --out-format=colored-line-number  # ← not github-actions
 
   # ──────────────────────────────────────────
