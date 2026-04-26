@@ -10,11 +10,11 @@ linters:
 
 linters-settings:
   errcheck:
-    ignore: "fmt:.*,io/fs:PathError"  # ignore fmt.Print* errors
     exclude-functions:    # ← not ignore
       - fmt.Print
       - fmt.Println
       - fmt.Printf
+      - io/fs:PathError
 
 issues:
   exclude-rules:
