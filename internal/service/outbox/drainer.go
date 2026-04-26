@@ -50,15 +50,19 @@ func (d *Drainer) drain(ctx context.Context) {
 		log.Printf("drainer: failed to begin tx: %v", err)
 		return
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil && err != sql.ErrTxDone {
+			log.Printf("rollback error: %v", err)
+		}
+	}()
 
 	rows, err := tx.Query(`
-	    SELECT id, code, ip, country, device, referer, clicked_at
-	    FROM click_events
-	    WHERE processed = false
-	    ORDER BY id
-	    LIMIT 1000
-	    FOR UPDATE SKIP LOCKED
+		SELECT id, code, ip, country, city, asn, device, referer, source, clicked_at
+		FROM click_events
+		WHERE processed = false
+		ORDER BY id
+		LIMIT 1000
+		FOR UPDATE SKIP LOCKED
 	`)
 	if err != nil {
 		log.Printf("drainer: failed to query click_events: %v", err)
@@ -70,7 +74,18 @@ func (d *Drainer) drain(ctx context.Context) {
 	var ids []int64
 	for rows.Next() {
 		var event ClickEvent
-		if err := rows.Scan(&event.ID, &event.Code, &event.IP, &event.Country, &event.Device, &event.Referer, &event.ClickedAt); err != nil {
+		if err := rows.Scan(
+			&event.ID,
+			&event.Code,
+			&event.IP,
+			&event.Country,
+			&event.City,
+			&event.ASN,
+			&event.Device,
+			&event.Referer,
+			&event.Source,
+			&event.ClickedAt,
+		); err != nil {
 			log.Printf("drainer: failed to scan row: %v", err)
 			return
 		}
@@ -105,13 +120,25 @@ func (d *Drainer) drain(ctx context.Context) {
 }
 
 func ingestClickHouse(ctx context.Context, ch driver.Conn, b []ClickEvent) error {
-	batch, err := ch.PrepareBatch(ctx, "INSERT INTO clicks (short_code, ip, country, device, referer, clicked_at)")
+	batch, err := ch.PrepareBatch(ctx,
+		"INSERT INTO clicks (short_code, ip, country, city, asn, device, referer, source, clicked_at)",
+	)
 	if err != nil {
-		return err
+		return fmt.Errorf("clickhouse: prepare batch: %w", err)
 	}
 
 	for _, event := range b {
-		if err := batch.Append(event.Code, event.IP, event.Country, event.Device, event.Referer, event.ClickedAt); err != nil {
+		if err := batch.Append(
+			event.Code,
+			event.IP,
+			event.Country,
+			event.City,
+			event.ASN,
+			event.Device,
+			event.Referer,
+			event.Source,
+			event.ClickedAt,
+		); err != nil {
 			return fmt.Errorf("clickhouse: append event for code %s: %w", event.Code, err)
 		}
 	}

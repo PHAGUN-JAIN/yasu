@@ -14,6 +14,8 @@ RUN go mod download
 # Copy the entire project
 COPY . .
 
+RUN mkdir -p /app/geoDB
+
 # Build the Go binary with optimizations
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o urlshort ./cmd/urlshort/main.go
 
@@ -27,6 +29,9 @@ WORKDIR /app
 
 # Copy the binary from the builder stage
 COPY --from=builder /app/urlshort /usr/local/bin/urlshort
+
+# Copy the geoDB files from the builder stage
+COPY --from=builder /app/geoDB /app/geoDB
 
 # Expose the port the application will run on
 EXPOSE 8000

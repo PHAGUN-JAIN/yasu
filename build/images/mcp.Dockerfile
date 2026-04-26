@@ -4,8 +4,6 @@ FROM golang:1.25 AS builder
 # Update to the latest version of the base image
 # RUN apt-get update && apt-get upgrade -y
 
-
-
 # Set the working directory inside the container
 WORKDIR /app
 
@@ -15,6 +13,8 @@ RUN go mod download
 
 # Copy the entire project
 COPY . .
+
+RUN mkdir -p /app/geoDB
 
 # Build the Go binary with optimizations
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o urlshort_mcp ./cmd/urlshort_mcp/main.go
@@ -29,6 +29,7 @@ WORKDIR /app
 
 # Copy the binary from the builder stage
 COPY --from=builder /app/urlshort_mcp /usr/local/bin/urlshort_mcp
+COPY --from=builder /app/geoDB /app/geoDB
 
 # Expose the port the application will run on
 EXPOSE 8001

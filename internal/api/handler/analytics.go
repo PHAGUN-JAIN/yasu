@@ -36,5 +36,7 @@ func (h *AnalyticsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(analyticsData)
+	if err := json.NewEncoder(w).Encode(analyticsData); err != nil {
+		log.Printf("failed to encode response: %v", err)
+	}
 }

@@ -77,14 +77,18 @@ func (h *YasuHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	// return JSON response
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	if err := json.NewEncoder(w).Encode(map[string]string{
 		"short_url": "http://localhost:8000/" + code,
 		"code":      code,
-	})
+	}); err != nil {
+		log.Printf("failed to encode response: %v", err)
+	}
 }
 
 func (h *YasuHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	// validation, auth checks, etc. can be done here before calling the service layer
 	result := h.Service.Delete()
-	w.Write([]byte(result))
+	if _, err := w.Write([]byte(result)); err != nil {
+		log.Printf("failed to write response: %v", err)
+	}
 }

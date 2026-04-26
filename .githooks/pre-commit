@@ -1,0 +1,15 @@
+#!/bin/sh
+
+echo "Running lint..."
+make lint
+if [ $? -ne 0 ]; then
+    echo "Lint failed — commit blocked."
+    exit 1
+fi
+
+echo "Checking formatting..."
+if [ "$(gofmt -l . | wc -l)" -gt 0 ]; then
+    echo "Formatting issues — run 'make fmt-fix' and re-stage."
+    gofmt -l .
+    exit 1
+fi
