@@ -62,28 +62,28 @@ jobs:
           sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
           sudo chmod +x /usr/local/bin/docker-compose
 
-      - name: Download GeoIP databases
-        run: make geoip MAXMIND_KEY=${{ secrets.MAXMIND_KEY }}
+      # - name: Download GeoIP databases
+      #   run: make geoip MAXMIND_KEY=${{ secrets.MAXMIND_KEY }}
 
-      - name: Start services
-        run: make up
+      # - name: Start services
+      #   run: make up
 
-      - name: Wait for Postgres to be ready
-        run: |
-          until docker-compose -f build/compose/services.yaml exec -T postgres pg_isready -U postgres; do
-            echo "waiting for postgres..."
-            sleep 2
-          done
+      # - name: Wait for Postgres to be ready
+      #   run: |
+      #     until docker-compose -f build/compose/services.yaml exec -T postgres pg_isready -U postgres; do
+      #       echo "waiting for postgres..."
+      #       sleep 2
+      #     done
 
-      - name: Wait for ClickHouse to be ready
-        run: |
-          until docker-compose -f build/compose/services.yaml exec -T clickhouse clickhouse-client --query "SELECT 1"; do
-            echo "waiting for clickhouse..."
-            sleep 2
-          done
+      # - name: Wait for ClickHouse to be ready
+      #   run: |
+      #     until docker-compose -f build/compose/services.yaml exec -T clickhouse clickhouse-client --query "SELECT 1"; do
+      #       echo "waiting for clickhouse..."
+      #       sleep 2
+      #     done
 
       - name: Build binary
-        run: go build -ldflags="-s -w" -o yasu ./cmd/server/main.go
+        run: go build -ldflags="-s -w" -o yasu ./cmd/urlshort/main.go
 
       - name: Run tests
         run: go test -v -race -count=1 ./...
