@@ -24,20 +24,24 @@ func (s *AnalyticsService) Get(ctx context.Context, code string) (*repository.St
 		BySource:  make(map[string]uint64),
 	}
 
-	// total clicks
-	err := s.chConn.QueryRow(ctx,
-		"SELECT count() FROM clicks WHERE short_code = $1", code,
-	).Scan(&stats.TotalClicks)
+	// total clicks from materialized view
+	err := s.chConn.QueryRow(ctx, `
+		SELECT countMerge(clicks)
+		FROM clicks_daily
+		WHERE short_code = $1
+	`, code).Scan(&stats.TotalClicks)
 	if err != nil {
 		return nil, fmt.Errorf("total clicks: %w", err)
 	}
 
 	// by country
-	rows, err := s.chConn.Query(ctx,
-		`SELECT country, count() as clicks
-		 FROM clicks WHERE short_code = $1
-		 GROUP BY country ORDER BY clicks DESC`, code,
-	)
+	rows, err := s.chConn.Query(ctx, `
+		SELECT country, countMerge(clicks) as clicks
+		FROM clicks_daily
+		WHERE short_code = $1
+		GROUP BY country
+		ORDER BY clicks DESC
+	`, code)
 	if err != nil {
 		return nil, fmt.Errorf("by country: %w", err)
 	}
@@ -56,11 +60,13 @@ func (s *AnalyticsService) Get(ctx context.Context, code string) (*repository.St
 	rows.Close()
 
 	// by device
-	rows, err = s.chConn.Query(ctx,
-		`SELECT device, count() as clicks
-		 FROM clicks WHERE short_code = $1
-		 GROUP BY device ORDER BY clicks DESC`, code,
-	)
+	rows, err = s.chConn.Query(ctx, `
+		SELECT device, countMerge(clicks) as clicks
+		FROM clicks_daily
+		WHERE short_code = $1
+		GROUP BY device
+		ORDER BY clicks DESC
+	`, code)
 	if err != nil {
 		return nil, fmt.Errorf("by device: %w", err)
 	}
@@ -79,11 +85,13 @@ func (s *AnalyticsService) Get(ctx context.Context, code string) (*repository.St
 	rows.Close()
 
 	// by source
-	rows, err = s.chConn.Query(ctx,
-		`SELECT source, count() as clicks
-		 FROM clicks WHERE short_code = $1
-		 GROUP BY source ORDER BY clicks DESC`, code,
-	)
+	rows, err = s.chConn.Query(ctx, `
+		SELECT source, countMerge(clicks) as clicks
+		FROM clicks_daily
+		WHERE short_code = $1
+		GROUP BY source
+		ORDER BY clicks DESC
+	`, code)
 	if err != nil {
 		return nil, fmt.Errorf("by source: %w", err)
 	}
@@ -102,11 +110,13 @@ func (s *AnalyticsService) Get(ctx context.Context, code string) (*repository.St
 	rows.Close()
 
 	// by day
-	rows, err = s.chConn.Query(ctx,
-		`SELECT toDate(clicked_at) as date, count() as clicks
-		 FROM clicks WHERE short_code = $1
-		 GROUP BY date ORDER BY date`, code,
-	)
+	rows, err = s.chConn.Query(ctx, `
+		SELECT date, countMerge(clicks) as clicks
+		FROM clicks_daily
+		WHERE short_code = $1
+		GROUP BY date
+		ORDER BY date
+	`, code)
 	if err != nil {
 		return nil, fmt.Errorf("by day: %w", err)
 	}
