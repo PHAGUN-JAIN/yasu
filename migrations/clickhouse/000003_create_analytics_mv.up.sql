@@ -1,5 +1,5 @@
 -- Step 1  the target table that stores pre-aggregated data
--- AggregatingMergeTree is the correct engine for materialized views
+-- AggregatingMergeTree is the correct engine for the target aggregate table used by the materialized view
 CREATE TABLE IF NOT EXISTS clicks_daily
 (
     short_code  String,
