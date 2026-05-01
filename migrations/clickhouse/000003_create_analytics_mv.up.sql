@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS clicks_daily
     clicks      AggregateFunction(count)   -- stores partial aggregation state
 )
 ENGINE = AggregatingMergeTree()
+PARTITION BY toYYYYMM(date)
 ORDER BY (short_code, date, country, city, device, source);
 
 -- Step 2  the materialized view that feeds clicks_daily
